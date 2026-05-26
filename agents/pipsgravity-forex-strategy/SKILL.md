@@ -383,7 +383,12 @@ Phase G — Launch from Zone (2-4 candles):
    price_top: max(Phase C highs)
    price_bottom: min(Phase C lows)
 
-6. At Phase G first candle → trade_setup (LAST)
+6. floating_label "PRICE RETURNS TO ZONE" (if used):
+   candle_index: last Phase F candle within 10 pips of the zone
+   price_level:  zone_bottom + 0.0005 (inside the zone)
+   VERIFY: candles[candle_index].c is within 10 pips of zone_bottom
+
+7. At Phase G first candle → trade_setup (LAST)
    candle_start: first candle of Phase G
    entry_price: midpoint of demand zone
    sl_price: zone_bottom - 0.0010
@@ -461,7 +466,13 @@ Phase G — Launch from OB (2-4 candles):
    label: "ORDER BLOCK"
    candle_index: ob_index
 
-5. At Phase G first candle → trade_setup (LAST)
+5. floating_label "PRICE RETURNS TO ORDER BLOCK" (if used):
+   candle_index: the last Phase F candle that is within 10 pips of the OB
+   price_level:  OB_bottom + 0.0005 (inside the OB zone, not above it)
+   This label must sit AT the OB level, not 100+ pips above it.
+   VERIFY: abs(candles[candle_index].c - OB_bottom) <= 0.0010
+
+6. At Phase G first candle → trade_setup (LAST)
    candle_start: first candle of Phase G (the touch-and-go candle)
    entry_price: midpoint of OB box = (OB_top + OB_bottom) / 2
    sl_price: OB_bottom - 0.0010 (10 pip buffer below OB)
