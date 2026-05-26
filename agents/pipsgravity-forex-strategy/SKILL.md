@@ -1,380 +1,508 @@
 ---
 name: pipsgravity-forex-strategy
-description: The complete PipsGravity forex trading strategy. Teaches Claude exactly how Wilfred identifies supply/demand zones, order blocks, fair value gaps, BOS, CHoCH, flip setups, liquidity, and entries. Every rule comes directly from the PipsGravity Academy course document. Load this skill before generating any forex educational content, chart scenes, or strategy explanations for PipsGravity.
+description: The PipsGravity forex trading strategy for generating chart education videos. Teaches Claude the exact concepts, candle sequences, and teaching-order rules for producing CHART_SCENE videos. Every rule comes directly from the PipsGravity Academy course. Load this skill before generating any chart scene. v2 — captions removed, hook_text added, labels are earned.
 ---
 
 ## WHO THIS IS FOR
 
-This skill teaches you the PipsGravity forex strategy exactly as taught in the PipsGravity Academy. Every rule, condition, and sequence in this document comes directly from that course. When generating candle sequences, overlays, or explanations for PipsGravity content, you must follow these rules precisely — not a generic textbook version, not ICT theory in isolation, but this specific framework.
+This skill teaches you the PipsGravity forex strategy as taught in the PipsGravity Academy. When generating CHART_SCENE videos for PipsGravity, follow every rule in this document precisely. Not a generic version — this specific framework.
 
 ---
 
-## TERMINOLOGY NOTE
+## TERMINOLOGY
 
-In this strategy, Supply/Demand zones and Order Blocks refer to the same thing. The terminology is interchangeable. What matters is the concept — not the label. Imbalance, inefficiency, fair value gap, and IFC (Inefficiency/Fair Value Gap) all mean the same thing.
-
----
-
-## SECTION 1 — MARKET STRUCTURE
-
-### How to identify market structure
-
-Market structure is identified by tracking Higher Highs (HH), Higher Lows (HL) for uptrends, and Lower Highs (LH), Lower Lows (LL) for downtrends. The safest and most profitable trades follow the main trend.
-
-**Main trend vs Counter trend:**
-- Main trend moves are impulsive — large, fast candles with momentum
-- Counter trend moves are corrective — smaller, slower, overlapping candles
-- Always trade the main trend. Counter trend trades exist but are unpredictable.
-- The direction is confirmed by where price is coming from relative to supply and demand zones.
-
-### Weak vs Strong Structures
-
-**Strong structure:** A structural point (high or low) is STRONG if it has broken through the opposite zone.
-- Example: A demand zone that broke through a supply zone above it becomes STRONG demand.
-- Strong highs and lows are valid targets and reference points.
-
-**Weak structure:** A structural point is WEAK if it failed to break through the opposite zone and rejected from it.
-- Weak highs and lows are more likely to be broken.
-- A weak demand breaking a weak supply does NOT make either of them strong.
-
-**Why this matters for candle sequences:**
-When building a bullish candle sequence, the highs that get broken must be STRONG highs — previously created by demand that broke through supply above. Weak highs that get broken do not create a valid BOS. This is the most common mistake in generic content: showing BOS on a weak structural point.
+Supply/Demand zones and Order Blocks are the same thing. Imbalance, inefficiency, fair value gap, and FVG all mean the same thing. Use these terms interchangeably.
 
 ---
 
-## SECTION 2 — SUPPLY AND DEMAND ZONES (ORDER BLOCKS)
+## VIDEO STRUCTURE — READ THIS FIRST
 
-### What is a valid Supply/Demand zone?
+Every CHART_SCENE video has two phases:
 
-A Supply/Demand zone (Order Block) is valid only when ALL THREE of these conditions are met:
+**PHASE 1 — HOOK (0ms to 1800ms):** Clean screen. No candles. The `hook_text` field is displayed as a static title. One punchy line that names the concept and creates curiosity. Examples: "Most traders see a candle. Smart Money sees an order block." / "This is why your stops keep getting taken out." / "Equal highs are not resistance. They are a target."
 
-1. **It created a Fair Value Gap (inefficiency/imbalance)** — price moved so fast from that level that it left an unfilled gap between two candles' wicks. The momentum proves there were significant orders at that level.
-
-2. **It broke structure (BOS) or changed character (CHoCH)** — the move from the zone must be strong enough to break the previous structural point. A zone that price gently drifted away from is NOT valid.
-
-3. **It created or took liquidity** — the zone formed near equal highs/lows (where stop losses are clustered) or swept liquidity before reversing.
-
-**A zone without all three conditions is not tradeable in this strategy.**
-
-### How to identify the Order Block candle
-
-The Order Block is **the last candle before the Fair Value Gap forms**. This is not always the opposite-direction candle — that is a textbook rule that does not hold in practice.
-
-**Correct identification:**
-- Find where price created momentum (Fair Value Gap / inefficiency)
-- Go back to the candle immediately before that momentum started
-- THAT candle is the Order Block
-- It can be bullish or bearish regardless of what direction the FVG moved
-
-**Example for a bullish demand:**
-Price drops down, then suddenly launches up with large impulsive candles leaving a gap. The Order Block is the LAST candle before that impulsive launch — could be a small bearish candle, a doji, or even a bullish candle. What matters: it was the last candle before the FVG.
-
-**Example for a bearish supply:**
-Price rallies up, then suddenly collapses with large impulsive candles leaving a gap downward. The Order Block is the LAST candle before that collapse.
-
-### What makes a high-probability Order Block?
-
-High probability zones have these characteristics:
-- Price pushed **rapidly** away — not slowly, not gradually. Large candles, strong momentum.
-- Left a clear Fair Value Gap (visible gap between candles)
-- Broke structure or changed character on the move away
-- The zone has NOT been previously tapped (it is unmitigated/unused)
-- Price has not returned to that level yet
-
-### When a wick is the zone, not the candle body
-
-When price created a very large wick before the impulse, the valid zone is the WICK — not the candle body. This is because:
-- The orders that caused the reaction are sitting at the wick level
-- The candle body has already been mitigated by the following candle
-- Marking the candle body in this case leads to early entries that get stopped out
-
-**Visual test:** If the following candle closes beyond the first candle's body (but not beyond its wick), the wick is the valid zone.
-
-### Mitigated vs Unmitigated Zones
-
-- **Unmitigated (unused):** Price has not returned to this zone yet. Valid for entries.
-- **Mitigated (used):** Price has already tapped into this zone. No longer valid for entries.
-
-When price taps a zone for the first time, it becomes mitigated. After mitigation:
-- Continuation setups use the next unmitigated zone in the same direction
-- Reversal setups wait for CHoCH confirmation
+**PHASE 2 — CHART (1800ms onward):** Candles draw one by one. Overlays appear in teaching order — each label is earned by the candle evidence that precedes it. The viewer learns by watching conditions form, not by being told conclusions.
 
 ---
 
-## SECTION 3 — FAIR VALUE GAP (FVG)
+## SCHEMA
 
-### What is a Fair Value Gap?
+```json
+{
+  "scene_id": 1,
+  "render_type": "CHART_SCENE",
+  "duration_ms": <number — calculated, see formula below>,
+  "hook_text": "<one punchy line — displayed as static title 0ms to duration_ms>",
+  "brand": {
+    "primary": "#1B2A4A",
+    "accent": "#C9A84C",
+    "danger": "#991B1B",
+    "success": "#166534",
+    "font_heading": "Oswald",
+    "font_body": "Inter"
+  },
+  "chart": {
+    "start_ms": 1800,
+    "candles": [ { "o": number, "h": number, "l": number, "c": number } ],
+    "candle_interval_ms": <400ms minimum — choose based on concept pacing>,
+    "visible_count": <MUST equal candles.length exactly>,
+    "background": "white",
+    "bullish_color": "#26a69a",
+    "bearish_color": "#ef5350"
+  },
+  "overlays": [ ... ],
+  "assets": { "sound_effects": [] },
+  "transition_in": { "type": "fade", "duration_ms": 300 },
+  "transition_out": { "type": "fade", "duration_ms": 300 }
+}
+```
 
-A Fair Value Gap is the space between candle 1's wick and candle 3's wick when candle 2 moves with such momentum that it leaves a void. Price will usually return to fill this void.
+**NO stt_timestamps field. It does not exist in v2. Never generate it.**
 
-**How to identify it:**
-- Three consecutive candles
-- Candle 2 is large and impulsive (the momentum candle)
-- There is a gap between Candle 1's low (for bullish FVG) and Candle 3's high (for bullish FVG)
-- That gap = the Fair Value Gap
+### Duration Formula
+```
+duration_ms = chart.start_ms + (candles.length × candle_interval_ms) + 4000
+```
+The +4000ms gives 4 seconds after the last candle for overlays to settle. No maximum. Let the concept determine the length.
 
-**In candle data:**
-- Bullish FVG: candles[X].l (low of candle before impulse) > candles[X+2].h (high of candle after impulse)
-- Bearish FVG: candles[X].h (high of candle before impulse) < candles[X+2].l (low of candle after impulse)
-
-### How FVG works with Order Blocks
-
-The Order Block is not complete without the FVG. Together they form the entry zone:
-- The Order Block candle marks WHERE to enter
-- The FVG confirms THAT a valid zone exists
-- When both align at the same price level, it is the highest probability entry
-
-Price coming back to fill the FVG is often the entry trigger.
-
----
-
-## SECTION 4 — BOS vs CHoCH
-
-This is the most important distinction in the strategy. Getting this wrong invalidates the entire candle sequence.
-
-### BOS — Break of Structure (Continuation)
-
-**Definition:** Price breaks a structural point IN THE SAME DIRECTION as the current trend.
-
-**In an uptrend:** A new Higher High breaks the previous HH. This is a BOS. It confirms the uptrend continues.
-
-**In a downtrend:** A new Lower Low breaks the previous LL. This is a BOS. It confirms the downtrend continues.
-
-**Conditions for a valid BOS:**
-- The candle must CLOSE beyond the structural point — a wick through it alone is NOT a BOS
-- The structural point being broken must be a STRONG high/low (not weak)
-- The break must be impulsive (large candles, momentum, ideally leaving an FVG)
-
-**What BOS tells you:** The trend is continuing. Look for continuation entries using the unmitigated demand/supply zones formed during the move.
-
-**Candle sequence for BOS:**
-Price in uptrend → makes HH → pulls back to HL → breaks the previous HH with a close above it → BOS confirmed → new demand zone formed during the pullback is the entry.
-
-### CHoCH — Change of Character (Reversal)
-
-**Definition:** Price breaks a structural point AGAINST the current trend, signaling a potential reversal.
-
-**In an uptrend:** Price was making HH and HL. Then it breaks a HL (previous low) to the downside with a candle CLOSE below it. This is CHoCH. The trend may be reversing.
-
-**In a downtrend:** Price was making LH and LL. Then it breaks a LH (previous high) to the upside with a candle CLOSE above it. This is CHoCH.
-
-**Conditions for a valid CHoCH:**
-- The candle must CLOSE beyond the structural point — wick only = NOT valid
-- The break must happen AFTER price has tapped a Higher Timeframe zone (HTF mitigation is what triggers the reversal)
-- Most effective when price breaks through 2 or more supply/demand zones in one move
-- The move must be impulsive — few large candles, not many small candles
-
-**What CHoCH tells you:** A potential trend reversal. This creates the first opportunity to trade in the new direction.
-
-**Candle sequence for CHoCH:**
-Price in downtrend (LH, LL) → taps a HTF demand zone → bounces strongly → closes ABOVE the previous LH → CHoCH confirmed → now look for buys → entry is on the flip/OB that created the CHoCH move.
-
-### The critical difference for candle generation
-
-When generating candles for a BOS video:
-- Show price already in a trend (HH HL or LH LL)
-- The BOS break is price continuing that trend, not reversing it
-- The BOS candle CLOSES beyond the previous high (for bullish) or low (for bearish)
-- A supply or demand zone forms during the pullback AFTER the BOS
-- That zone is where the entry comes from
-
-When generating candles for a CHoCH video:
-- Show price in an established downtrend (LH LL) or uptrend (HH HL)
-- Price taps a key HTF zone
-- The CHoCH move impulsively breaks the previous opposite structural point with a close
-- The entry zone is the OB/FVG from the CHoCH move
+### Candle Rules
+- **Maximum 30 candles.** Every candle must serve the story. If the concept needs 15, use 15. If it needs 25, use 25. Never exceed 30.
+- **candle_interval_ms minimum 400ms.** Slower is better for education. 500-600ms is ideal for most concepts. Viewers need time to see each candle.
+- **visible_count MUST equal candles.length.** Always. No exceptions.
+- **OHLC validity:** Every candle must satisfy `h >= max(o,c)` AND `l <= min(o,c)`.
+- **Impulsive candles** (the expansion/momentum candles) must be visually larger than context candles. Make bodies 3-5× the size of context candles. This is how viewers see momentum.
+- **Context candles** should be smaller, overlapping, corrective — showing a ranging or drifting market.
 
 ---
 
-## SECTION 5 — ENTRY TYPES
+## OVERLAY TIMING RULES
 
-### Type 1: The Flip
+**Candle N (0-indexed) finishes drawing at:**
+```
+chart.start_ms + (N + 1) × candle_interval_ms
+```
 
-**What it is:** A former demand zone that price breaks through impulsively becomes a supply zone. Or a former supply zone that price breaks through becomes a demand zone. The level "flips" its role.
+Every overlay `start_ms` MUST be >= the finish time of the candle it references. Never show a label before its candle has finished drawing.
 
-**How it works:**
-1. Price creates a demand zone at level X
-2. Price rises, makes a HH
-3. Price comes back down to demand at level X but cannot push higher — the demand is WEAK
-4. Price breaks impulsively through level X, leaving a new supply zone behind
-5. Price retraces back to the new supply (formerly the demand)
-6. Entry: limit order at the flipped supply zone
-
-**What makes a flip high probability:**
-- Price pushed aggressively away from the zone on the break (large candles, FVG left behind)
-- The original demand gave weak rejection (couldn't create a new HH)
-- The flip zone is unmitigated
-
-**Two types of flips:**
-- **Reversal flip:** The flip happens after a CHoCH — signals full trend reversal
-- **Continuation flip:** The flip happens within the trend — the previous demand broke, now supply continues the downtrend
-
-### Type 2: CHoCH Entry
-
-After CHoCH is confirmed, the entry is on the first pullback to the Order Block/FVG that created the CHoCH move. This is often the best entry because:
-- You are entering in the new trend direction
-- The entry zone was the origin of the impulsive CHoCH move
-- Risk is tight (stop below the OB, target is the next HTF supply/demand)
-
-### Type 3: Continuation (BOS Entry)
-
-After a BOS confirms the trend continues:
-1. Price made a BOS (closed above previous HH in uptrend)
-2. A demand zone formed during the pullback that led to the BOS
-3. Price may retrace to that demand zone
-4. Entry: limit order at that demand zone
-5. TP: next unmitigated supply zone or the target that caused the BOS
-
-Use this when you missed the flip or CHoCH entry and need to scale in.
-
-### Equilibrium Entry (50% entry)
-
-When the Order Block candle has a very long wick that is bigger than 50% of the whole candle, use the 50% level of the ENTIRE candle (not the body) as the entry zone. This prevents getting stopped out by the wick before price moves in your direction.
+**Minimum 800ms gap between consecutive overlays.** Labels must be staggered so the viewer can read each one.
 
 ---
 
-## SECTION 6 — LIQUIDITY
+## THE TEACHING PRINCIPLE — LABELS ARE EARNED
 
-### What is liquidity?
+This is the most important rule in this skill.
 
-Liquidity is where stop losses are clustered. Smart Money (banks, institutions) needs liquidity to fill their large positions. They move price to where retail traders have their stop losses, activate those stops, then reverse in the opposite direction.
+Every label must be preceded by the candle evidence that earns it. The viewer learns by watching conditions appear in order, not by seeing labels before the evidence.
+
+**Wrong:** Show candles, then immediately label the demand zone.
+**Right:** Show liquidity form → show FVG form → show BOS confirm → THEN label the demand zone.
+
+Each condition gets its own overlay label when it appears. The final concept label (Order Block, Demand Zone) only appears AFTER all its conditions have been labelled first.
+
+Use `floating_label` overlays with bold short text like "STEP 1: FVG ✓" or "STEP 2: BOS ✓" to guide the viewer through the evidence chain before the conclusion.
+
+---
+
+## CONCEPT 1 — VALID SUPPLY AND DEMAND ZONE
+
+### What Makes It Valid
+
+A Supply/Demand zone (Order Block) is ONLY valid when ALL THREE conditions are present:
+
+1. **It created a Fair Value Gap (FVG)** — price moved so fast from that level that it left an unfilled gap. The gap is between the low of the candle before the impulse and the high of the candle after the impulse (for bullish). This gap proves significant orders existed at that level.
+
+2. **It broke structure (BOS)** — the move from the zone must close a candle BEYOND the previous structural high (for bullish) or structural low (for bearish). A wick through does NOT count. The candle body must CLOSE beyond the level.
+
+3. **It created or took liquidity** — the zone formed near equal highs or equal lows (where stop losses are clustered), OR the move swept liquidity before the zone formed.
+
+**A zone without all three conditions is not valid and must not be labelled.**
+
+### How to Mark the Zone
+
+**Demand zone:** Take the low of the consolidation range and the highest candle body within it. The zone spans from the lowest wick to the highest body of the base candles.
+
+**Supply zone:** Take the high of the consolidation range and the lowest candle body within it. The zone spans from the highest wick to the lowest body of the base candles.
+
+The demand zone is created once the expansion (the impulsive move + BOS) takes place. Price must subsequently fall back INTO the zone from the top side for the entry to be valid.
+
+### Candle Sequence — Bullish Demand Zone
+
+Total: 20-25 candles.
+
+```
+PHASE A — Context (4-5 candles):
+  Bearish corrective candles. Small bodies. Price drifting lower.
+  This shows we are in a downmove, approaching a potential demand area.
+
+PHASE B — Liquidity formation (3-4 candles):
+  Equal lows. Two or more candles with lows at approximately the same price level.
+  These equal lows ARE the liquidity. Retail stop losses sit below them.
+  Candles are small, overlapping — a ranging, consolidating market.
+
+PHASE C — Base / Consolidation (2-3 candles):
+  Small candles, very tight range. This is the demand zone.
+  The last bearish candle in this sequence will become the Order Block.
+  These candles represent institutional accumulation before the expansion.
+
+PHASE D — Impulsive Expansion (3-4 candles):
+  Large bullish candles. Bodies must be 3-5× larger than Phase C candles.
+  These candles leave a Fair Value Gap between Phase C and Phase D.
+  The FVG is between: the LOW of the last Phase C candle and the HIGH of the 3rd Phase D candle.
+  Verify: candles[last_base].l > candles[first_impulse + 2].h
+
+PHASE E — BOS Candle (1-2 candles):
+  One candle that CLOSES above the most recent structural high from Phase A.
+  This is the Break of Structure. The candle body must close above — not just wick.
+
+PHASE F — Optional Retrace (3-5 candles):
+  Price pulls back toward the demand zone. Does not need to touch it.
+  This shows the potential entry area. Include if time allows.
+```
+
+### Overlay Teaching Sequence — Bullish Demand Zone
+
+Apply overlays in this exact order:
+
+```
+1. After Phase B last candle finishes:
+   type: "liquidity"
+   label: "$$$ EQUAL LOWS"
+   purpose: Show where retail stops are clustered BEFORE the zone is labelled
+
+2. After Phase D third candle finishes (FVG now visible):
+   type: "fvg"
+   label: "STEP 1: FVG ✓"
+   price_top: candles[last_base].l
+   price_bottom: candles[first_impulse + 2].h
+   purpose: First condition confirmed — show the gap
+
+3. After Phase E BOS candle finishes:
+   type: "bos_label"
+   label: "STEP 2: BOS ✓"
+   direction: "up"
+   price_level: the structural high that was broken
+   purpose: Second condition confirmed — candle CLOSED above structure
+
+4. 800ms after BOS label:
+   type: "floating_label"
+   text: "STEP 3: LIQUIDITY ✓"
+   purpose: Third condition confirmed — the equal lows from Phase B were the liquidity
+
+5. 800ms after Step 3 label:
+   type: "demand_zone"
+   label: "VALID DEMAND ZONE"
+   price_top: max high of Phase C candles
+   price_bottom: min low of Phase C candles
+   candle_start: first Phase C candle index
+   purpose: Final label — only appears AFTER all 3 conditions are labelled
+```
+
+---
+
+## CONCEPT 2 — ORDER BLOCK
+
+### What an Order Block Is
+
+An Order Block is the LAST candle of the opposite colour before an impulsive move that caused a Break of Structure.
+
+- **Bullish OB:** The LAST BEARISH candle before the bullish impulse that broke structure to the upside.
+- **Bearish OB:** The LAST BULLISH candle before the bearish impulse that broke structure to the downside.
+
+The OB is where institutions placed their final orders before the move. They were selling (bearish candle) even as they planned to push price up. They must come back to mitigate that position. When price returns to the OB, institutions close their opposing trade and continue the original move.
+
+**The OB MUST have caused a BOS.** If the impulse from that candle did not break structure, it is NOT a valid OB.
+
+### How to Mark the OB Box
+
+The OB box covers the BODY of the last opposite-direction candle:
+- `price_top` = max(open, close) of the OB candle
+- `price_bottom` = min(open, close) of the OB candle
+
+The wicks are not included in the box unless the wick is much larger than the body (in which case mark from wick to body or 50% of full candle range).
+
+### Candle Sequence — Bullish Order Block
+
+Total: 18-22 candles.
+
+```
+PHASE A — Downtrend Context (4-5 candles):
+  LH-LL structure. Bearish trend. Small-to-medium bearish candles.
+  Establishes the structural high that will be broken by BOS.
+
+PHASE B — Equal Lows / Liquidity (3-4 candles):
+  Two or more candles with equal lows. Stop losses cluster here.
+  Price is ranging tightly. Building sell-side liquidity.
+
+PHASE C — The Base: 1-2 small candles (these are the OB area):
+  The last 1-2 candles before the impulse. Often small, indecisive.
+  The LAST bearish candle in this sequence is THE ORDER BLOCK.
+  Its body (open-to-close) defines the OB box.
+
+PHASE D — Impulse: 3-4 large bullish candles:
+  Large bodies. 4-6× the size of Phase C candles. Fast momentum.
+  Leaves a clear Fair Value Gap after Phase C.
+  FVG: candles[OB_index].l > candles[OB_index + 3].h
+
+PHASE E — BOS: 1 candle closes above Phase A structural high:
+  Candle body closes ABOVE the previous structural high. 
+  This is what validates the OB. Without this, the OB is invalid.
+
+PHASE F — Retrace to OB (3-5 candles):
+  Price pulls back toward the OB box. This is the entry.
+  Show price approaching but not necessarily filling the OB.
+  Ends with a reaction (small bounce) from the OB level.
+```
+
+### Overlay Teaching Sequence — Order Block
+
+```
+1. After Phase B last candle:
+   type: "liquidity"
+   label: "$$$ STOPS HERE"
+   candle_start: first equal-low candle index
+   candle_end: last equal-low candle index
+   purpose: Show where stops are — this is what gets swept
+
+2. After Phase D third candle (FVG visible):
+   type: "fvg"
+   label: "FVG CREATED"
+   purpose: Gap confirms the impulse was institutional
+
+3. After Phase E BOS candle:
+   type: "bos_label"
+   label: "BOS CONFIRMED"
+   direction: "up"
+   price_level: the structural high broken
+   purpose: Validates the OB — without this, no OB exists
+
+4. 800ms after BOS label:
+   type: "order_block"
+   label: "ORDER BLOCK"
+   candle_index: the last bearish candle before Phase D (the OB candle)
+   price_top: max(o, c) of that candle
+   price_bottom: min(o, c) of that candle
+   direction: "bearish"
+   purpose: NOW we label the OB — only after BOS confirms it is valid
+
+5. After Phase F retrace reaches OB:
+   type: "trade_setup"
+   entry_price: midpoint of OB box
+   sl_price: below OB low with small buffer
+   tp_price: previous structural high (or higher)
+   direction: "long"
+   start_ms: duration_ms - 2000
+   purpose: Show the entry — always the last overlay
+```
+
+---
+
+## CONCEPT 3 — LIQUIDITY
+
+### What Liquidity Is
+
+Liquidity is where stop losses are clustered. Institutions need liquidity to fill large positions. They move price to where retail traders have their stops, activate those stops, then reverse.
 
 **Where liquidity forms:**
-- Equal highs (two or more highs at the same level) — marked as `$$$`
-- Equal lows (two or more lows at the same level) — marked as `$$$`
-- Trendline highs/lows (retail traders place stops below/above trendlines)
-- Double tops and double bottoms
+- **Equal Highs (EQH):** Two or more highs at the same price level. Retail traders sell at double/triple tops and place stop losses ABOVE the highs. This creates buy-side liquidity above.
+- **Equal Lows (EQL):** Two or more lows at the same level. Retail traders buy at double/triple bottoms with stops BELOW. This creates sell-side liquidity below.
 
-### Liquidity Grab vs BOS
+**The rule:** Before a large move UP, sell-side liquidity (below equal lows) must be swept first to fuel the move. Before a large move DOWN, buy-side liquidity (above equal highs) must be swept.
 
-**Liquidity grab:** One impulsive spike through the liquidity level, leaving a large wick. Price immediately reverses after sweeping the stops. Confirms that smart money has collected orders and will now move the other way.
+### Liquidity Grab vs BOS — Critical Distinction
 
-**BOS:** Price breaks through a level and CLOSES beyond it with momentum. Does not immediately reverse — continues in the break direction.
+This is the most important distinction in the liquidity concept:
 
-**How to tell the difference:**
-- Liquidity grab: large wick through the level, candle body stays near/below the level
-- BOS: candle CLOSES beyond the level, no immediate reversal
+**Liquidity Grab (NOT a BOS):**
+- One candle wicks aggressively THROUGH the equal highs or lows
+- The candle BODY stays near or below the level
+- Price IMMEDIATELY reverses in the opposite direction after the wick
+- The large wick IS the grab — it represents stop losses being triggered
+- This is manipulation: institutions spiked price to collect stops before reversing
 
-### How liquidity is used in this strategy
+**Break of Structure (BOS — NOT a grab):**
+- A candle CLOSES BEYOND the level — the body closes above/below
+- Price does NOT immediately reverse
+- Price continues in the direction of the break
+- Creates a new structural point (new high or new low)
 
-Liquidity levels above supply or below demand are targets and confirmation:
-- If liquidity forms below a demand zone, it confirms that the demand is likely to be targeted (price will sweep the lows before reversing up from demand)
-- If liquidity forms above a supply zone, the supply is likely to be targeted
-- A sweep of liquidity + reaction from a zone = very high probability entry
+**Visual test:** Wick through + close on the other side + immediate reversal = GRAB. Close beyond + continuation = BOS. Never confuse them.
 
----
+### Candle Sequence — Liquidity Sweep (Buy-Side, then Reversal Down)
 
-## SECTION 7 — THE FULL MARKET APPROACH (How trades are actually found)
+Total: 18-22 candles.
 
-This is the complete top-down process. Every trade follows this sequence.
+```
+PHASE A — Uptrend Context (4-5 candles):
+  HH-HL structure. Bullish. Shows price has been rising.
 
-### Step 1: Higher Timeframe — Define who is in control
+PHASE B — Equal Highs Formation (4-6 candles):
+  Price reaches a high, pulls back, then rises again to the SAME high level.
+  Second peak is at approximately the same price as the first.
+  Optionally a third touch (triple top) for even more liquidity.
+  Candles must show: high1 ≈ high2 (within a few pips).
+  These equal highs mark the buy-side liquidity pool.
 
-Timeframe pairs used in this strategy:
-- **Intraday:** H4 and H1 as higher timeframes, 15m/5m/1m for entries
-- **Scalping:** 15m as higher timeframe, 1m for entries
+PHASE C — Consolidation Below the Highs (2-3 candles):
+  Price ranges just below the equal highs. Building more liquidity.
+  Retail traders now selling at the "double top resistance."
+  Their stop losses are ABOVE the equal highs = buy-side liquidity.
 
-On the higher timeframe (H4):
-- Mark all unmitigated supply and demand zones
-- Determine if supply or demand is in control (where is price coming from?)
-- These zones are NOT entry zones — they are directional references and targets
-- If price is coming from an unmitigated HTF supply, supply is in control — only look for sells
-- If price is coming from an unmitigated HTF demand, demand is in control — only look for buys
+PHASE D — Spike Through / Liquidity Sweep (1-2 candles):
+  ONE large candle. Very long upper wick that breaks ABOVE the equal highs.
+  CRITICAL: The candle BODY must close BACK BELOW the equal high level.
+  This is the grab — the wick swept the stops, the body shows rejection.
+  Immediately followed by: large bearish candle or gap down.
 
-### Step 2: Mid Timeframe — Find the entry zones
+PHASE E — Reversal / Bearish Expansion (3-4 candles):
+  Large bearish candles. The move institutions actually wanted.
+  Fuelled by all the liquidity grabbed in Phase D.
+  Price moves sharply lower — clearly impulsive.
 
-On the mid timeframe (15m or 1m):
-- Find unmitigated supply or demand zones aligned with the HTF direction
-- Wait for either a flip, CHoCH, or BOS to confirm the direction on this timeframe
-- The entry zone is the OB/FVG that caused the confirmation move
+PHASE F — Continuation (2-3 candles):
+  Continued bearish movement. Shows the reversal was real, not a retrace.
+```
 
-### Step 3: Entry
+### Overlay Teaching Sequence — Liquidity Sweep
 
-Enter at the unmitigated zone after confirmation. The three valid entry triggers:
-1. **Flip** — zone flipped its role, entry at the new zone
-2. **CHoCH** — trend changed, entry at the OB that created CHoCH
-3. **BOS continuation** — trend confirmed, entry at the demand that created BOS
+```
+1. After Phase B last equal-high candle:
+   type: "liquidity"
+   label: "$$$ EQUAL HIGHS"
+   price_level: the equal-high price
+   candle_start: first equal-high candle
+   candle_end: last equal-high candle
+   swept: false
+   purpose: Label the liquidity pool BEFORE it is swept
 
-**Who is in control determines whether you trade:**
-- Price coming from UNMITIGATED supply → supply is in control → only take sells
-- Price coming from MITIGATED supply → demand is in control → take buys
-- Never trade against the controlling side without confirmation (CHoCH)
+2. After Phase D spike candle finishes:
+   type: "candle_label"
+   text: "LIQUIDITY SWEEP"
+   candle_index: the spike candle
+   price_level: the high of the spike candle
+   side: "right"
+   purpose: Label the sweep at the moment it happens
 
-### Step 4: Targets
+3. 800ms after sweep label:
+   type: "candle_label"
+   text: "WICK = GRAB, NOT BOS"
+   candle_index: the spike candle
+   price_level: the close of the spike candle
+   side: "left"
+   purpose: Teach the critical distinction — wick closed back below
 
-- TP at the next unmitigated opposite zone (nearest supply for longs, nearest demand for shorts)
-- HTF supply/demand levels are the ultimate targets
-- Risk: 2% on funded accounts, 5% on personal account
-- Hold intraday trades within the session (close before session ends)
-- Move stop to breakeven if high-impact news is approaching
+4. After Phase E second candle finishes:
+   type: "floating_label"
+   text: "SELL-SIDE NOW IN CONTROL"
+   candle_index: Phase E second candle
+   price_level: close of that candle
+   color: "#ef5350"
+   purpose: Confirm the direction after the sweep
 
----
-
-## SECTION 8 — CANDLE SEQUENCE RULES FOR VIDEO GENERATION
-
-When generating candle data for CHART_SCENE videos about any PipsGravity concept, follow these exact rules.
-
-### For Order Block (Demand) videos:
-1. Show 4-6 candles of bearish context (price moving down) — these establish the trend
-2. Show price moving with some momentum but not impulsively — building a LH LL structure
-3. Show 1-2 small candles (the base) — these will become the Order Block
-4. Show 3-5 large bullish impulsive candles launching upward (the FVG-creating move)
-5. The FVG is visible between the base candles and the top of the impulse
-6. Optionally show price coming back down toward the OB zone (the retrace)
-
-The Order Block overlay marks the LAST candle before the impulsive move — not the first candle of the move.
-
-### For Order Block (Supply) videos:
-1. Show 4-6 candles of bullish context
-2. Show 1-2 small candles at the top (the Order Block)
-3. Show 3-5 large bearish impulsive candles launching downward
-4. FVG visible between the OB candles and the bottom of the impulse
-
-### For BOS videos:
-1. Show an established uptrend: HH → HL → HH pattern across 8-12 candles
-2. The final BOS: a candle that CLOSES above the previous HH with momentum
-3. The BOS candle must be large and impulsive — not a small candle barely closing above
-4. After the BOS, show a pullback forming a new demand zone
-5. Mark the BOS at the exact candle that CLOSES above the previous high
-
-### For CHoCH videos:
-1. Show an established downtrend: LH → LL → LH pattern across 8-12 candles
-2. Price taps into a key demand zone (this is the HTF mitigation)
-3. Price launches upward impulsively from that demand
-4. A candle CLOSES above the previous LH — this is the CHoCH
-5. The CHoCH candle must close beyond the level — not just wick through it
-6. Mark CHoCH at the exact candle close, not before
-
-### For Flip videos:
-1. Show a demand zone forming at level X
-2. Price rises, makes a high (HH)
-3. Price comes back down to the demand zone but shows WEAK reaction (small candles, doesn't push far)
-4. Price breaks through the demand with a large bearish impulsive move (FVG left)
-5. The broken demand level is now marked as supply (the FLIP)
-6. Price retraces back up to the supply/flip zone
-
-### For Liquidity Sweep videos:
-1. Show price forming equal highs or equal lows across 4-6 candles (the liquidity pool)
-2. Mark the equal highs/lows with a liquidity marker
-3. Price spikes aggressively THROUGH the level with one or two large candles
-4. Large wick is visible — the body stays near the level
-5. Price immediately reverses sharply away from the liquidity
-6. Show the demand/supply zone where the reversal came from
+5. Optional — if Phase A created an OB:
+   type: "order_block"
+   label: "SUPPLY ZONE"
+   direction: "bullish" (last bullish candle before Phase E bearish impulse)
+   purpose: Show where the institutional entry was
+```
 
 ---
 
-## SECTION 9 — WHAT NOT TO DO
+## CANDLE DATA QUALITY RULES
 
-These are common mistakes that produce incorrect content:
+**Impulsive candles must LOOK impulsive:**
+A typical context candle range: 8-15 pips. A typical impulsive candle range: 30-60 pips. The visual difference must be obvious. Viewers identify momentum by candle size. If your impulse candles are the same size as your context candles, the concept will not be visible.
 
-**Do not mark a BOS on a wick:** BOS requires a candle CLOSE beyond the structural point. A wick through the level is a liquidity grab, not a BOS.
+**Equal highs must BE equal:**
+For a liquidity concept, equal highs must share the same high price (or within 1-2 pips). candles[A].h ≈ candles[B].h. Do not generate "equal highs" where one high is 10 pips above the other — that is not a valid liquidity pool.
 
-**Do not show the Order Block before the FVG exists:** The OB is identified by the FVG. If there is no FVG, there is no valid OB. The OB overlay must appear after the impulsive move has started.
+**FVG must be mathematically present:**
+For bullish FVG: candles[X].l must be GREATER than candles[X+2].h.
+If this condition is not met, there is no FVG. Adjust your candle prices until the gap exists.
 
-**Do not mark mitigated zones as entry zones:** Once price has tapped a zone, it is used. Show only unmitigated zones as entry areas.
+**BOS candle must CLOSE beyond structure:**
+The BOS candle's CLOSE (not its high) must exceed the structural high.
+If candles[bos_index].c <= structural_high, it is NOT a valid BOS. Adjust.
 
-**Do not confuse LQ grab and BOS:** They look similar but are opposite signals. LQ grab → price reverses. BOS → price continues.
+---
 
-**Do not show CHoCH before the impulsive break:** CHoCH is confirmed only when the candle CLOSES beyond the structural point. The label appears at the close of that candle — not before.
+## OVERLAY REFERENCE
 
-**Do not mark a weak structural high as a BOS level:** Only strong highs (those that previously broke structure) are valid BOS reference points.
+All overlays use real price values and candle indexes. Never use y_pct or x_pct.
+
+```
+order_block:      candle_index, price_top, price_bottom, direction, label
+demand_zone:      price_top, price_bottom, candle_start, label
+supply_zone:      price_top, price_bottom, candle_start, label
+fvg:              price_top, price_bottom, candle_start, label
+bos_label:        candle_index, price_level, direction (up/down)
+liquidity:        price_level, candle_start, candle_end, label, swept (true/false)
+candle_label:     text, candle_index, price_level, side (left/right)
+floating_label:   text, candle_index, price_level, color
+trade_setup:      entry_price, sl_price, tp_price, candle_start, direction, rr_ratio
+```
+
+Overlay stagger pattern:
+- First overlay: X ms (after candle finishes)
+- Second overlay: X + 800ms
+- Third overlay: X + 1600ms
+- trade_setup: always last — start_ms = duration_ms - 2000
+
+---
+
+## HOOK_TEXT EXAMPLES PER CONCEPT
+
+**Valid Demand Zone:**
+- "Three things make a demand zone valid. Most traders know zero of them."
+- "This is the zone. Most traders never see it until price already left."
+- "Before you mark a demand zone — make sure it earned the label."
+
+**Order Block:**
+- "Most traders see a candle. Smart Money sees an order block."
+- "This is where institutions left their footprint. Price always comes back."
+- "The last bearish candle before the explosion. That is your order block."
+
+**Liquidity:**
+- "Your stop loss is not safe. It is a target."
+- "Equal highs are not resistance. They are fuel."
+- "This is why price always spikes before reversing."
+
+---
+
+## WHAT NOT TO DO
+
+**Do not label an OB before the BOS exists.** The impulse must close a candle beyond structure before any OB label appears.
+
+**Do not label a demand zone before showing the FVG and BOS as steps.** Each condition gets its own label first. The zone label is always last.
+
+**Do not generate 400 candles of slowly drifting price.** That is not a concept. That is noise. Every candle serves the story.
+
+**Do not generate impulsive candles that are the same size as context candles.** Momentum must be visually obvious.
+
+**Do not show a wick through structure and label it BOS.** A wick through = liquidity grab. A candle CLOSE beyond = BOS. This distinction must be reflected in your candle data.
+
+**Do not generate equal highs that are not equal.** If the highs differ by more than 3 pips, it is not a valid liquidity pool.
+
+**Do not exceed 30 candles.** Count your candles before outputting.
+
+**Do not use candle_interval_ms below 400.** Viewers cannot see candles drawing at less than 400ms each.
+
+**Do not generate stt_timestamps.** That field does not exist in v2.
+
+---
+
+## FINAL CHECKLIST BEFORE OUTPUTTING
+
+- [ ] hook_text is one punchy line — no stt_timestamps anywhere
+- [ ] candles.length <= 30
+- [ ] visible_count equals candles.length exactly
+- [ ] candle_interval_ms >= 400
+- [ ] duration_ms = 1800 + (candles.length × candle_interval_ms) + 4000
+- [ ] Every candle: h >= max(o,c) AND l <= min(o,c)
+- [ ] Impulsive candles are 3-5× larger than context candles
+- [ ] FVG is mathematically present: candles[X].l > candles[X+2].h
+- [ ] BOS candle CLOSE is beyond the structural point
+- [ ] All overlay start_ms >= candle finish times
+- [ ] Overlays appear in teaching order (evidence first, label last)
+- [ ] Minimum 800ms between consecutive overlays
+- [ ] trade_setup is last overlay: start_ms = duration_ms - 2000
+- [ ] All overlays use price values and candle indexes — no percentages
