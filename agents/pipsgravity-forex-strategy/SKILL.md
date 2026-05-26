@@ -178,9 +178,17 @@ Bearish BOS: candles[N].c < structural_low
 
 **Self-check:**
 ```
-structural_high = highest close or high of Phase A candles
-IF candles[bos_index].c <= structural_high → NOT a BOS. Raise candles[bos_index].c.
-IF candles[bos_index].c >  structural_high → BOS confirmed. Place bos_label.
+structural_high = highest high of Phase A candles — the specific candle that set the high
+structural_high_candle_index = that candle's index (for candle_start field)
+price_level = candles[structural_high_candle_index].h
+
+IF candles[bos_index].c <= price_level → NOT a BOS. Raise candles[bos_index].c.
+IF candles[bos_index].c >  price_level → BOS confirmed.
+
+bos_label overlay:
+  candle_start = structural_high_candle_index   (left anchor of line)
+  candle_index = bos_index                      (right anchor, where line ends)
+  price_level  = candles[structural_high_candle_index].h
 ```
 
 ---
@@ -241,6 +249,12 @@ Bullish OB:
     price_top    = max(candles[ob_index].o, candles[ob_index].c)
     price_bottom = min(candles[ob_index].o, candles[ob_index].c)
     candle_index = ob_index
+
+  VISUAL SEPARATION FROM LIQUIDITY LINE:
+    The liquidity line and the OB box must NOT overlap.
+    liquidity candle_end = ob_index - 1  (line stops one candle before the OB)
+    The OB box then sits cleanly to the right of the liquidity line.
+    This makes both elements clearly readable on screen.
 
   direction field in overlay:
     direction = the colour of the OB candle itself, not what it signals
@@ -335,6 +349,12 @@ Phase F — Retrace (4-10 candles):
   If the retrace candles do not reach within 10 pips of the zone, add more
   retrace candles until this condition is met. Do not end Phase F early.
   End with a small bounce or pause at the zone level to show the entry area.
+
+Phase G — Launch from Zone (2-4 candles):
+  Price touches the demand zone and launches upward.
+  First candle: opens inside or at zone, closes above zone top.
+  trade_setup candle_start = this first Phase G candle.
+  Remaining candles: bullish expansion toward TP. Body range 20-40 pips.
 ```
 
 ### Overlay Teaching Sequence
@@ -351,15 +371,25 @@ Phase F — Retrace (4-10 candles):
 
 3. After Phase E BOS candle → bos_label
    label: "STEP 2: BOS ✓", direction: "up"
-   price_level: Phase A structural high
+   candle_start: index of Phase A candle whose high was broken
+   candle_index: bos_index
+   price_level: candles[candle_start].h
 
 4. 800ms after BOS → floating_label
    text: "STEP 3: LIQUIDITY ✓"
 
-5. 800ms after step 3 → demand_zone (LAST concept label)
+5. 800ms after step 3 → demand_zone
    label: "VALID DEMAND ZONE"
    price_top: max(Phase C highs)
    price_bottom: min(Phase C lows)
+
+6. At Phase G first candle → trade_setup (LAST)
+   candle_start: first candle of Phase G
+   entry_price: midpoint of demand zone
+   sl_price: zone_bottom - 0.0010
+   tp_price: Phase A structural high
+   direction: "long"
+   rr_ratio: calculate from actual prices — must be between 1:2 and 1:5
 ```
 
 ---
@@ -402,6 +432,14 @@ Phase F — Retrace to OB (4-10 candles):
     Last retrace candle close = [price]
     CHECK: close <= OB_bottom + 0.0010 = TRUE/FALSE
     If FALSE: add more retrace candles until TRUE.
+
+Phase G — Launch from OB (2-4 candles):
+  Price touches the OB zone and launches upward.
+  First candle of Phase G: opens inside or at OB zone, closes above OB top.
+  This is the entry candle — the visual proof that the OB held.
+  trade_setup candle_start = first candle of Phase G (the touch-and-go candle).
+  Remaining Phase G candles: bullish expansion showing price moving toward TP.
+  Body range: 20-40 pips per candle.
 ```
 
 ### Overlay Teaching Sequence
@@ -415,15 +453,24 @@ Phase F — Retrace to OB (4-10 candles):
 
 3. After Phase E BOS candle → bos_label
    label: "BOS CONFIRMED", direction: "up"
+   candle_start: index of the Phase A candle whose high was broken
+   candle_index: bos_index
+   price_level: candles[candle_start].h
 
 4. 800ms after BOS → order_block
    label: "ORDER BLOCK"
    candle_index: ob_index
 
-5. After Phase F retrace → trade_setup (LAST)
-   entry: midpoint of OB box
-   sl: below OB low with buffer
-   tp: Phase A structural high or beyond
+5. At Phase G first candle → trade_setup (LAST)
+   candle_start: first candle of Phase G (the touch-and-go candle)
+   entry_price: midpoint of OB box = (OB_top + OB_bottom) / 2
+   sl_price: OB_bottom - 0.0010 (10 pip buffer below OB)
+   tp_price: Phase A structural high (the high that was broken by BOS)
+   direction: "long"
+   rr_ratio: calculate from actual prices — must be between 1:2 and 1:5
+     rr = (tp - entry) / (entry - sl)
+     If rr > 5: move tp closer. If rr < 2: widen tp or tighten sl.
+   start_ms: duration_ms - 2000
 ```
 
 ---
