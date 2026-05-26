@@ -545,6 +545,14 @@ Phase F — Continuation (2-5 candles):
 
 ## CANDLE QUALITY RULES
 
+### candle_label Text Rule
+candle_label text must be:
+- Maximum 5 words
+- One line only — NO \n characters, no line breaks
+- SVG does not render newlines — multi-line text becomes one broken string
+- If two labels are needed on the same candle, create TWO separate candle_label
+  overlays at different price_level values (e.g. one at the high, one 20 pips below)
+
 **Pip reference for EUR/USD (1 pip = 0.0001):**
 ```
 3 pips  = 0.0003    10 pips = 0.0010    30 pips = 0.0030
@@ -609,6 +617,8 @@ trade_setup always last: start_ms = duration_ms - 2000
 
 - [ ] hook_text present — one line, max 12 words
 - [ ] No stt_timestamps field anywhere
+- [ ] Every candle_label text: maximum 5 words, one line, NO \n characters
+- [ ] bos_label candle_start = Phase A candle with MAX(h), NOT always candle 0
 - [ ] Phase count calculated before generating candles
 - [ ] candles.length between 10 and 60
 - [ ] candles.length = sum of required phases only — no padding
