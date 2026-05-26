@@ -242,6 +242,13 @@ Bullish OB:
     price_bottom = min(candles[ob_index].o, candles[ob_index].c)
     candle_index = ob_index
 
+  direction field in overlay:
+    direction = the colour of the OB candle itself, not what it signals
+    Bullish OB (last BEARISH candle before bullish impulse) → direction: "bearish"
+    Bearish OB (last BULLISH candle before bearish impulse) → direction: "bullish"
+    This controls the box colour in the renderer — bearish = red box, bullish = blue box.
+    A red box on the last red candle is correct. Do not set direction to match the trade.
+
 Bearish OB:
   candles[ob_index].c > candles[ob_index].o   (it is bullish)
   It is the LAST bullish candle before the bearish impulse
@@ -322,8 +329,12 @@ Phase E — BOS (1-2 candles):
   VERIFY: candles[bos_index].c > Phase A structural high
 
 Phase F — Retrace (4-10 candles):
-  Price returns toward demand zone.
-  Show the potential entry area.
+  Price returns toward the demand zone.
+  REQUIRED: The last candle of Phase F must close within 10 pips of the zone.
+    candles[last_retrace].c must be between zone_bottom and zone_bottom + 0.0010
+  If the retrace candles do not reach within 10 pips of the zone, add more
+  retrace candles until this condition is met. Do not end Phase F early.
+  End with a small bounce or pause at the zone level to show the entry area.
 ```
 
 ### Overlay Teaching Sequence
@@ -381,8 +392,16 @@ Phase E — BOS (1-2 candles):
   VERIFY: candles[bos_index].c > Phase A structural high
 
 Phase F — Retrace to OB (4-10 candles):
-  Price returns toward OB box. Shows the entry.
-  End with small bounce from OB level.
+  Price returns toward the OB box. Shows the entry.
+  REQUIRED: The last candle of Phase F must close within 10 pips of the OB.
+    candles[last_retrace].c must be between OB_bottom and OB_bottom + 0.0010
+  If the retrace candles do not reach within 10 pips of the OB, add more
+  retrace candles until this condition is met. Do not stop the retrace early.
+  VERIFY before outputting:
+    OB zone = [price_bottom] to [price_top]
+    Last retrace candle close = [price]
+    CHECK: close <= OB_bottom + 0.0010 = TRUE/FALSE
+    If FALSE: add more retrace candles until TRUE.
 ```
 
 ### Overlay Teaching Sequence
