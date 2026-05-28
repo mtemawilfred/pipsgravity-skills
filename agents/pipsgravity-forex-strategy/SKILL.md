@@ -465,11 +465,17 @@ Phase F — Retrace (4-10 candles):
   retrace candles until this condition is met. Do not end Phase F early.
   End with a small bounce or pause at the zone level to show the entry area.
 
-Phase G — Launch from Zone (2-4 candles):
-  Price touches the demand zone and launches upward.
+Phase G — Launch from Zone to TP (3-8 candles):
+  Price touches the demand zone and launches all the way to the structural high.
+  trade_setup candle_start = first Phase G candle.
+
   First candle: opens inside or at zone, closes above zone top.
-  trade_setup candle_start = this first Phase G candle.
-  Remaining candles: bullish expansion toward TP. Body range 20-40 pips.
+  Remaining candles: bullish expansion, body range 20-40 pips each.
+
+  REQUIRED — PRICE MUST REACH THE TP:
+    Last Phase G candle must close AT or ABOVE tp_price (the structural high).
+    VERIFY: candles[last_phase_g].c >= tp_price
+    If FALSE: add more bullish expansion candles until TRUE.
 ```
 
 ### Overlay Teaching Sequence
@@ -514,10 +520,14 @@ MANDATORY ORDER: Evidence before conclusion. Never label the zone before showing
    candle_start: first Phase G candle (touch-and-go)
    entry_price: midpoint of demand zone
    sl_price: zone_bottom - 0.0010
-   tp_price: Phase A structural high
+   tp_price: THE HIGH THAT WAS BROKEN BY BOS
+             = the price_level from the bos_label overlay
+             This is the full target — the high price must return to.
+             1:4 or 1:5 levels shown in the video are PARTIAL profits only.
+             The TP on the chart always shows the structural high.
    direction: "long"
-   rr_ratio: floor((tp - entry) / (entry - sl)) — round DOWN to whole number
-     Must be between 2 and 5.
+   rr_ratio: floor((tp - entry) / (entry - sl)) — real R:R to structural high
+             Not capped. Show the actual number.
    start_ms: duration_ms - 2000
 ```
 
@@ -585,13 +595,21 @@ Phase F — Retrace to OB (4-10 candles):
     entry_lq_level = candles[A].l (the shared low level)
     The Phase G first candle wicks below entry_lq_level before closing up
 
-Phase G — Launch from OB (2-4 candles):
-  Price touches the OB zone and launches upward.
-  First candle of Phase G: opens inside or at OB zone, closes above OB top.
-  This is the entry candle — the visual proof that the OB held.
-  trade_setup candle_start = first candle of Phase G (the touch-and-go candle).
-  Remaining Phase G candles: bullish expansion showing price moving toward TP.
-  Body range: 20-40 pips per candle.
+Phase G — Launch from OB to TP (3-8 candles):
+  Price touches the OB zone and launches all the way to the structural high (TP).
+  trade_setup candle_start = first Phase G candle (the touch-and-go candle).
+
+  Phase G candle rules:
+    First candle: opens inside or at OB zone, closes above OB top.
+    Remaining candles: bullish expansion, body range 20-40 pips each.
+
+  REQUIRED — PRICE MUST REACH THE TP:
+    The last candle of Phase G must close AT or ABOVE tp_price.
+    tp_price = the structural high = price_level from bos_label.
+    If 3 expansion candles do not reach tp_price, add more until they do.
+    VERIFY: candles[last_phase_g].c >= tp_price
+    If FALSE: extend Phase G with more bullish candles until TRUE.
+    The video must show price completing the full move — not stopping halfway.
 ```
 
 ### Overlay Teaching Sequence
@@ -653,7 +671,7 @@ The viewer must watch conditions form — then see the conclusion.
    tp_price: Phase A structural high
    direction: "long"
    rr_ratio: floor((tp - entry) / (entry - sl)) — round DOWN to whole number
-     Must be between 2 and 5.
+     Show the real R:R to structural high. Not capped.
    start_ms: duration_ms - 2000
 ```
 
@@ -812,5 +830,6 @@ trade_setup always last: start_ms = duration_ms - 2000
 - [ ] order_block and demand_zone appear AFTER fvg and bos_label — never before
 - [ ] GOLDEN RULE: liquidity was swept before the entry — macro LQ (Phase B) and/or entry LQ (Phase F/G)
 - [ ] Entry LQ sweep verified: Phase G candle wicks below Phase F equal lows AND closes above them
+- [ ] Phase G price reaches TP: candles[last_phase_g].c >= tp_price (structural high)
 - [ ] Minimum 800ms between consecutive overlays
 - [ ] trade_setup is last: start_ms = duration_ms - 2000
