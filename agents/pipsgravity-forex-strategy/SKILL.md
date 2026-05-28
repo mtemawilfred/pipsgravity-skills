@@ -1,6 +1,6 @@
 ---
 name: pipsgravity-forex-strategy
-description: The PipsGravity forex strategy skill for generating CHART_SCENE videos. Teaches Claude the exact concepts, mathematical verification conditions, candle sequences, and teaching-order rules. v4 — candle max raised to 60, dynamic phase-based candle counting added, visible_count = candles.length confirmed correct. Sources: PipsGravity Academy Course, Pietrus-914/skills-repo, pattern-recognition skill.
+description: "PipsGravity forex strategy skill for CHART_SCENE video generation. Mathematical verification, candle sequences, teaching-order rules. Sources: PipsGravity Academy Course, Pietrus-914/skills-repo, pattern-recognition skill."
 ---
 
 ## MATHEMATICAL SOURCE REFERENCES
