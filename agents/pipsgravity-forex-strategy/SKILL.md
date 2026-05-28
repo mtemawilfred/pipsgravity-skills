@@ -35,8 +35,7 @@ and the mathematical references above. Follow every rule precisely.
 **HOOK (0ms to 1800ms):** Clean screen. Static hook_text title. No candles.
 **CHART (1800ms onward):** Candles draw one by one. Overlays appear in teaching order.
 
-**NO stt_timestamps. NO narration script. NO captions.**
-The chart teaches. The hook_text is the only text the viewer reads.
+The chart teaches. hook_text is the only text the viewer reads.
 
 ---
 
@@ -324,7 +323,11 @@ STEP 8: Run final checklist
 
 ```
 Phase A — Downtrend Context (4-8 candles):
-  Small bearish bodies 5-12 pips. Establishes structural high.
+  Small bearish bodies 5-12 pips. Establishes the structural high.
+  SWING HIGH RULE: The structural high must sit at candle index 1, 2 or 3
+  of the phase — NOT at candle 0. Candles before it rise toward it,
+  candles after fall away. Creates a real swing high, not a cliff edge.
+  VERIFY: structural_high_candle_index >= 1 (never 0)
 
 Phase B — Equal Lows / Liquidity (3-5 candles):
   VERIFY: abs(candles[A].l - candles[B].l) <= 0.0003
@@ -418,7 +421,15 @@ No BOS = no valid OB.
 
 ```
 Phase A — Downtrend Context (4-8 candles):
-  LH-LL structure. Establishes structural high. Bodies 5-12 pips.
+  LH-LL structure. Establishes the structural high that will be broken by BOS.
+  Bodies 5-12 pips each.
+  SWING HIGH RULE: The structural high (highest candle) must sit in the MIDDLE
+  of Phase A — at candle index 1, 2 or 3 of the phase — NOT at candle 0.
+  Candles before the peak rise slightly toward it.
+  Candles after the peak fall away from it forming LH-LL.
+  This creates a genuine swing high with context on both sides — not a cliff edge.
+  A shorter BOS line is always cleaner and more readable.
+  VERIFY: structural_high_candle_index >= 1 (never 0)
 
 Phase B — Equal Lows (3-5 candles):
   VERIFY: abs(candles[A].l - candles[B].l) <= 0.0003
@@ -521,6 +532,8 @@ then reverse sharply. The wick is the grab.
 ```
 Phase A — Uptrend Context (4-8 candles):
   HH-HL structure. Prior bullish move.
+  The swing HIGH for a bearish sweep should sit in the MIDDLE of Phase A,
+  not at the last candle. This creates readable context on both sides.
 
 Phase B — Equal Highs Formation (4-6 candles):
   VERIFY: abs(candles[A].h - candles[B].h) <= 0.0003
@@ -640,7 +653,6 @@ trade_setup always last: start_ms = duration_ms - 2000
 ## FINAL CHECKLIST
 
 - [ ] hook_text present — one line, max 12 words
-- [ ] No stt_timestamps field anywhere
 - [ ] Every candle_label text: maximum 5 words, one line, NO \n characters
 - [ ] bos_label candle_start = Phase A candle with MAX(h), NOT always candle 0
 - [ ] Phase count calculated before generating candles
