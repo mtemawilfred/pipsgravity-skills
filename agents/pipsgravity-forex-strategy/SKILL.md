@@ -473,7 +473,8 @@ Phase G — Launch from Zone to TP (3-8 candles):
   Remaining candles: bullish expansion, body range 20-40 pips each.
 
   REQUIRED — PRICE MUST REACH THE TP:
-    Last Phase G candle must close AT or ABOVE tp_price (the structural high).
+    Last Phase G candle must close AT or ABOVE tp_price.
+    tp_price = max high of Phase D + Phase E impulse candles (the peak of the BOS move).
     VERIFY: candles[last_phase_g].c >= tp_price
     If FALSE: add more bullish expansion candles until TRUE.
 ```
@@ -520,14 +521,12 @@ MANDATORY ORDER: Evidence before conclusion. Never label the zone before showing
    candle_start: first Phase G candle (touch-and-go)
    entry_price: midpoint of demand zone
    sl_price: zone_bottom - 0.0010
-   tp_price: THE HIGH THAT WAS BROKEN BY BOS
-             = the price_level from the bos_label overlay
-             This is the full target — the high price must return to.
-             1:4 or 1:5 levels shown in the video are PARTIAL profits only.
-             The TP on the chart always shows the structural high.
+   tp_price: THE HIGHEST HIGH OF THE IMPULSE THAT BROKE STRUCTURE
+             = max(candles[N].h) across ALL Phase D and Phase E candles
+             = where the BOS move actually peaked — NOT the level it broke from
+             VERIFY: tp_price = max(Phase D + Phase E highs)
    direction: "long"
-   rr_ratio: floor((tp - entry) / (entry - sl)) — real R:R to structural high
-             Not capped. Show the actual number.
+   rr_ratio: floor((tp - entry) / (entry - sl)) — real R:R. Not capped.
    start_ms: duration_ms - 2000
 ```
 
@@ -605,8 +604,8 @@ Phase G — Launch from OB to TP (3-8 candles):
 
   REQUIRED — PRICE MUST REACH THE TP:
     The last candle of Phase G must close AT or ABOVE tp_price.
-    tp_price = the structural high = price_level from bos_label.
-    If 3 expansion candles do not reach tp_price, add more until they do.
+    tp_price = the HIGHEST HIGH of Phase D + Phase E impulse candles.
+    This is the peak of the move that broke structure — NOT the bos_label price level.
     VERIFY: candles[last_phase_g].c >= tp_price
     If FALSE: extend Phase G with more bullish candles until TRUE.
     The video must show price completing the full move — not stopping halfway.
