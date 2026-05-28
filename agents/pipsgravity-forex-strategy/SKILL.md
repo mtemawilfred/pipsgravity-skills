@@ -208,6 +208,40 @@ IF abs(candles[A].h - candles[B].h) > 0.0003 → NOT equal. Adjust prices.
 IF abs(candles[A].h - candles[B].h) <= 0.0003 → Equal highs confirmed. Place liquidity overlay.
 ```
 
+### Entry Liquidity (from Mastermind Trading Plan)
+
+Entry liquidity is a SECOND smaller liquidity pool that forms during the
+retrace (Phase F) near the OB/demand zone. It is separate from the macro
+equal highs/lows that set up the original move.
+
+**What it is:**
+As price retraces toward the OB, it consolidates just above the OB forming
+2-3 candles with equal lows. Retail traders who see price approaching a
+"support level" place their buy stops below those lows.
+
+Price then wicks BELOW those equal lows (sweeping the entry liquidity)
+before closing back above and launching. The wick is the entry signal.
+This is called "liquidity for entry" in the Mastermind Trading Plan.
+
+**Mathematical conditions:**
+```
+Entry LQ level = equal lows of Phase F consolidation near OB
+  abs(candles[A].l - candles[B].l) <= 0.0003
+  entry_lq_level = candles[A].l
+  Sits 0-5 pips above OB_bottom
+
+Entry LQ sweep (Phase G first candle):
+  candles[phase_g_start].l < entry_lq_level  (wick sweeps below)
+  candles[phase_g_start].c > entry_lq_level  (body closes back above)
+
+This sweep is the entry confirmation.
+If NO entry liquidity forms: the launch is still valid but the signal is weaker.
+```
+
+**Two types of liquidity in every OB/demand zone setup:**
+1. MACRO liquidity — the original equal highs/lows that set up the whole move
+2. ENTRY liquidity — the smaller equal lows that form during Phase F retrace
+
 ---
 
 ### Liquidity Sweep (Grab — NOT a BOS)
@@ -244,10 +278,12 @@ Bullish OB:
   It is the LAST bearish candle before the bullish impulse
   Impulse size: candles[ob_index+2].h - candles[ob_index].l >= 0.0020
 
-  OB box:
-    price_top    = max(candles[ob_index].o, candles[ob_index].c)
-    price_bottom = min(candles[ob_index].o, candles[ob_index].c)
+  OB box — uses FULL candle range including wicks:
+    price_top    = candles[ob_index].h  ← full candle high
+    price_bottom = candles[ob_index].l  ← full candle low
     candle_index = ob_index
+    This marks the entire candle from wick to wick — not just the body.
+    The full range shows the complete area where institutional orders exist.
 
   VISUAL SEPARATION FROM LIQUIDITY LINE:
     The liquidity line and the OB box must NOT overlap.
@@ -447,16 +483,28 @@ Phase E — BOS (1-2 candles):
   VERIFY: candles[bos_index].c > Phase A structural high
 
 Phase F — Retrace to OB (4-10 candles):
-  Price returns toward the OB box. Shows the entry.
+  Price retraces toward the OB box.
   REQUIRED: The last candle of Phase F must close within 10 pips of the OB.
     candles[last_retrace].c must be between OB_bottom and OB_bottom + 0.0010
   If the retrace candles do not reach within 10 pips of the OB, add more
   retrace candles until this condition is met. Do not stop the retrace early.
-  VERIFY before outputting:
+  VERIFY:
     OB zone = [price_bottom] to [price_top]
     Last retrace candle close = [price]
     CHECK: close <= OB_bottom + 0.0010 = TRUE/FALSE
-    If FALSE: add more retrace candles until TRUE.
+
+  ENTRY LIQUIDITY — forms during Phase F near the OB:
+  As price approaches the OB during retrace, 2-3 candles will consolidate
+  just ABOVE the OB forming equal lows. These are the "entry liquidity" —
+  retail stop losses sitting just below that consolidation.
+  Price will spike through these lows (wick below them) and close back above
+  before launching. This spike IS the entry signal from the Mastermind Plan.
+
+  Entry liquidity candle rules:
+    2-3 small candles with equal lows, sitting 0-5 pips above OB_bottom
+    Their lows must be: abs(candles[A].l - candles[B].l) <= 0.0003
+    entry_lq_level = candles[A].l (the shared low level)
+    The Phase G first candle wicks below entry_lq_level before closing up
 
 Phase G — Launch from OB (2-4 candles):
   Price touches the OB zone and launches upward.
@@ -503,12 +551,23 @@ The viewer must watch conditions form — then see the conclusion.
    direction: "bearish" (for bullish OB setup — matches candle colour)
    PURPOSE: only NOW label the OB — FVG + BOS already confirmed it
 
-6. floating_label "PRICE RETURNS TO ORDER BLOCK" (if used):
+6. Near last Phase F candles → liquidity (ENTRY LIQUIDITY)
+   type: "liquidity", label: "$$$ ENTRY LQ", swept: false
+   price_level: equal lows level of Phase F consolidation near OB
+   candle_start: first equal-low candle of Phase F consolidation
+   candle_end: last equal-low candle before Phase G
+   PURPOSE: show the entry liquidity pool that will be swept on entry
+
+7. Phase G first candle wicks below entry LQ → liquidity (swept = true)
+   type: "liquidity", label: "LQ SWEPT — ENTRY", swept: true
+   price_level: same entry_lq_level as step 6
+   PURPOSE: confirm the sweep happened — this is the entry trigger
+
+8. floating_label "PRICE RETURNS TO ORDER BLOCK" (if used):
    candle_index: last Phase F candle within 10 pips of OB
    price_level: OB_bottom + 0.0005
-   VERIFY: abs(candles[candle_index].c - OB_bottom) <= 0.0010
 
-7. At Phase G first candle → trade_setup (LAST overlay always)
+9. At Phase G first candle → trade_setup (LAST overlay always)
    candle_start: first Phase G candle (touch-and-go candle)
    entry_price: (OB_top + OB_bottom) / 2
    sl_price: OB_bottom - 0.0010
