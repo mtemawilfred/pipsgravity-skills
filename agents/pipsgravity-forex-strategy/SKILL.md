@@ -244,6 +244,82 @@ If NO entry liquidity forms: the launch is still valid but the signal is weaker.
 
 ---
 
+### THE GOLDEN RULE — Every Entry Needs Liquidity Taken First
+
+**Source: PipsGravity Liquidity and Manipulation document**
+
+Price needs FUEL to move. Liquidity is that fuel. Before every large move,
+liquidity must be swept. Without sweeping liquidity first, a move will not
+sustain or may not happen at all.
+
+**The rule stated simply:**
+Before entering at an OB or demand zone, liquidity must have been swept
+either at the macro level (the EQH/EQL that set up the original move) OR
+at the entry level (the small equal lows near the OB during retrace) OR BOTH.
+
+If no liquidity was swept before price launches from the zone, the setup is
+incomplete. Do not label it as a confirmed entry.
+
+---
+
+### LIQUIDITY TYPES — Full Reference
+
+**From PipsGravity Liquidity and Manipulation document:**
+
+**Type 1 — Equal Highs / Buy-Side Liquidity (EQH)**
+Formed by: Double tops, triple tops, ascending channel highs, H&S head
+Where stops sit: ABOVE the equal highs (sellers' stop losses)
+How it appears: Two or more highs at approximately the same price level
+Sweep confirmation: One candle wicks ABOVE the level, body closes BACK BELOW
+After sweep: Price has fuel to move DOWN (sold into all those buy stops)
+
+**Type 2 — Equal Lows / Sell-Side Liquidity (EQL)**
+Formed by: Double bottoms, triple bottoms, descending channel lows, H&S neckline
+Where stops sit: BELOW the equal lows (buyers' stop losses)
+How it appears: Two or more lows at approximately the same price level
+Sweep confirmation: One candle wicks BELOW the level, body closes BACK ABOVE
+After sweep: Price has fuel to move UP (bought from all those sell stops)
+
+**Type 3 — Breakout Trader Liquidity**
+Formed by: Traders who enter on a breakout of a level, place stops just inside
+Where stops sit: Just inside the broken level (10-20 pips back from the break)
+How it appears: Price breaks a level, small candles form a range just outside it
+Sweep confirmation: Price pulls back THROUGH the breakout level, spikes stops,
+then reverses and continues in the original direction
+
+**Type 4 — Entry Liquidity (LTF — near the OB/zone)**
+Formed by: The consolidation that forms during Phase F retrace near the OB
+Where stops sit: Below the equal lows of that consolidation
+Sweep confirmation: Phase G first candle wicks below those lows, closes above
+This is the entry trigger from the Mastermind Trading Plan
+
+---
+
+### Liquidity Sweep — What Makes It Valid
+
+**From PipsGravity Liquidity and Manipulation document:**
+
+A valid sweep requires all three:
+1. Price reaches the liquidity level (wick touches or exceeds it)
+2. Candle body closes on the OPPOSITE side of the level (does NOT continue)
+3. Next 1-2 candles move impulsively in the opposite direction (momentum)
+
+If any one of these is missing, it is NOT a confirmed sweep.
+
+The size of the wick matters:
+- A large wick (10+ pips above/below the level) = strong sweep, high momentum expected
+- A tiny wick (2-3 pips) = weak sweep, momentum may be weaker
+
+**Mathematical check for a valid sweep:**
+```
+For bullish setup (sweeping sell-side EQL):
+  sweep candle: l < EQL_level AND c > EQL_level
+  wick size: EQL_level - candle.l >= 0.0005 (at least 5 pips)
+  confirmation: next candle is bullish and closes above sweep candle open
+```
+
+---
+
 ### Liquidity Sweep (Grab — NOT a BOS)
 
 **From Pattern Recognition skill (Failed Breakout):**
@@ -467,8 +543,11 @@ Phase A — Downtrend Context (4-8 candles):
   A shorter BOS line is always cleaner and more readable.
   VERIFY: structural_high_candle_index >= 1 (never 0)
 
-Phase B — Equal Lows (3-5 candles):
+Phase B — Equal Lows / Macro Sell-Side Liquidity (3-5 candles):
+  This is Type 2 liquidity (EQL). Retail buyers place stops below these lows.
   VERIFY: abs(candles[A].l - candles[B].l) <= 0.0003
+  The macro LQ sweep happens when the impulse (Phase D) drives through Phase B lows.
+  Without this macro liquidity forming, the setup has no fuel.
 
 Phase C — OB Candle (1-2 candles):
   VERIFY: candles[ob_index].c < candles[ob_index].o (bearish)
@@ -731,5 +810,7 @@ trade_setup always last: start_ms = duration_ms - 2000
 - [ ] All overlay start_ms >= their candle finish time
 - [ ] Overlays in teaching order: liquidity → fvg → bos_label → candle_label → order_block/demand_zone → trade_setup
 - [ ] order_block and demand_zone appear AFTER fvg and bos_label — never before
+- [ ] GOLDEN RULE: liquidity was swept before the entry — macro LQ (Phase B) and/or entry LQ (Phase F/G)
+- [ ] Entry LQ sweep verified: Phase G candle wicks below Phase F equal lows AND closes above them
 - [ ] Minimum 800ms between consecutive overlays
 - [ ] trade_setup is last: start_ms = duration_ms - 2000
