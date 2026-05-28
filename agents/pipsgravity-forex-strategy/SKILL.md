@@ -359,42 +359,51 @@ Phase G — Launch from Zone (2-4 candles):
 
 ### Overlay Teaching Sequence
 
+MANDATORY ORDER: Evidence before conclusion. Never label the zone before showing the evidence.
+
 ```
 1. After Phase B last candle → liquidity
    label: "$$$ EQUAL LOWS", swept: false
    price_level: candles[last_equal_low].l
+   PURPOSE: show stop cluster location first
 
 2. After Phase D third candle → fvg
    label: "STEP 1: FVG ✓"
    price_top: candles[last_base + 3].l
    price_bottom: candles[last_base].h
+   PURPOSE: first evidence confirmed
 
 3. After Phase E BOS candle → bos_label
    label: "STEP 2: BOS ✓", direction: "up"
-   candle_start: index of Phase A candle whose high was broken
+   candle_start: Phase A candle with MAX(h) — NOT always candle 0
    candle_index: bos_index
    price_level: candles[candle_start].h
+   PURPOSE: second evidence confirmed
 
 4. 800ms after BOS → floating_label
    text: "STEP 3: LIQUIDITY ✓"
+   PURPOSE: third evidence confirmed — all three conditions met
 
-5. 800ms after step 3 → demand_zone
+5. 800ms after step 4 → demand_zone (THE CONCLUSION — last concept label)
    label: "VALID DEMAND ZONE"
    price_top: max(Phase C highs)
    price_bottom: min(Phase C lows)
+   PURPOSE: only NOW label the zone — after all three conditions shown
 
 6. floating_label "PRICE RETURNS TO ZONE" (if used):
-   candle_index: last Phase F candle within 10 pips of the zone
-   price_level:  zone_bottom + 0.0005 (inside the zone)
-   VERIFY: candles[candle_index].c is within 10 pips of zone_bottom
+   candle_index: last Phase F candle within 10 pips of zone
+   price_level: zone_bottom + 0.0005
+   VERIFY: abs(candles[candle_index].c - zone_bottom) <= 0.0010
 
-7. At Phase G first candle → trade_setup (LAST)
-   candle_start: first candle of Phase G
+7. At Phase G first candle → trade_setup (LAST overlay always)
+   candle_start: first Phase G candle (touch-and-go)
    entry_price: midpoint of demand zone
    sl_price: zone_bottom - 0.0010
    tp_price: Phase A structural high
    direction: "long"
-   rr_ratio: calculate from actual prices — must be between 1:2 and 1:5
+   rr_ratio: floor((tp - entry) / (entry - sl)) — round DOWN to whole number
+     Must be between 2 and 5.
+   start_ms: duration_ms - 2000
 ```
 
 ---
@@ -449,38 +458,53 @@ Phase G — Launch from OB (2-4 candles):
 
 ### Overlay Teaching Sequence
 
+MANDATORY ORDER: Evidence appears before conclusion.
+FVG and BOS must be on screen BEFORE the OB label appears.
+A candle_label pointing to the OB candle must appear BEFORE the order_block box.
+The viewer must watch conditions form — then see the conclusion.
+
 ```
-1. After Phase B → liquidity
+1. After Phase B last candle → liquidity
    label: "$$$ STOPS HERE", swept: false
+   PURPOSE: show where stops cluster before anything else
 
 2. After Phase D third candle → fvg
    label: "FVG CREATED"
+   PURPOSE: first evidence — impulse left institutional footprint
 
 3. After Phase E BOS candle → bos_label
    label: "BOS CONFIRMED", direction: "up"
-   candle_start: index of the Phase A candle whose high was broken
+   candle_start: Phase A candle with MAX(h) — NOT always candle 0
    candle_index: bos_index
    price_level: candles[candle_start].h
+   PURPOSE: second evidence — structure is broken, OB is now valid
 
-4. 800ms after BOS → order_block
+4. 800ms after BOS → candle_label (point to the OB candle)
+   text: "OB CANDLE" (max 5 words, one line, no \n)
+   candle_index: ob_index
+   price_level: candles[ob_index].l - 0.0005
+   side: "right"
+   PURPOSE: identify the specific candle now that evidence confirms it
+
+5. 800ms after candle_label → order_block (THE CONCLUSION — last concept label)
    label: "ORDER BLOCK"
    candle_index: ob_index
+   direction: "bearish" (for bullish OB setup — matches candle colour)
+   PURPOSE: only NOW label the OB — FVG + BOS already confirmed it
 
-5. floating_label "PRICE RETURNS TO ORDER BLOCK" (if used):
-   candle_index: the last Phase F candle that is within 10 pips of the OB
-   price_level:  OB_bottom + 0.0005 (inside the OB zone, not above it)
-   This label must sit AT the OB level, not 100+ pips above it.
+6. floating_label "PRICE RETURNS TO ORDER BLOCK" (if used):
+   candle_index: last Phase F candle within 10 pips of OB
+   price_level: OB_bottom + 0.0005
    VERIFY: abs(candles[candle_index].c - OB_bottom) <= 0.0010
 
-6. At Phase G first candle → trade_setup (LAST)
-   candle_start: first candle of Phase G (the touch-and-go candle)
-   entry_price: midpoint of OB box = (OB_top + OB_bottom) / 2
-   sl_price: OB_bottom - 0.0010 (10 pip buffer below OB)
-   tp_price: Phase A structural high (the high that was broken by BOS)
+7. At Phase G first candle → trade_setup (LAST overlay always)
+   candle_start: first Phase G candle (touch-and-go candle)
+   entry_price: (OB_top + OB_bottom) / 2
+   sl_price: OB_bottom - 0.0010
+   tp_price: Phase A structural high
    direction: "long"
-   rr_ratio: calculate from actual prices — must be between 1:2 and 1:5
-     rr = (tp - entry) / (entry - sl)
-     If rr > 5: move tp closer. If rr < 2: widen tp or tighten sl.
+   rr_ratio: floor((tp - entry) / (entry - sl)) — round DOWN to whole number
+     Must be between 2 and 5.
    start_ms: duration_ms - 2000
 ```
 
@@ -634,6 +658,7 @@ trade_setup always last: start_ms = duration_ms - 2000
 - [ ] Sweep verified: wick above + close below (if sweep concept)
 - [ ] All overlays use price values and candle indexes — no percentages
 - [ ] All overlay start_ms >= their candle finish time
-- [ ] Overlays in teaching order — evidence before conclusion
+- [ ] Overlays in teaching order: liquidity → fvg → bos_label → candle_label → order_block/demand_zone → trade_setup
+- [ ] order_block and demand_zone appear AFTER fvg and bos_label — never before
 - [ ] Minimum 800ms between consecutive overlays
 - [ ] trade_setup is last: start_ms = duration_ms - 2000
