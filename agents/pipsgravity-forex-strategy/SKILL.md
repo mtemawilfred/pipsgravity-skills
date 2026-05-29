@@ -230,9 +230,13 @@ Entry LQ level = equal lows of Phase F consolidation near OB
   entry_lq_level = candles[A].l
   Sits 0-5 pips above OB_bottom
 
-Entry LQ sweep (Phase G first candle):
-  candles[phase_g_start].l < entry_lq_level  (wick sweeps below)
-  candles[phase_g_start].c > entry_lq_level  (body closes back above)
+Entry LQ sweep — Phase G first candle MUST be a wick candle:
+  candles[phase_g_start].o > entry_lq_level  (opens above — no gap down)
+  candles[phase_g_start].l < entry_lq_level  (wick pierces below)
+  candles[phase_g_start].c > entry_lq_level  (body closes ABOVE — not a breakdown)
+  wick_size = entry_lq_level - candles[phase_g_start].l >= 0.0005 (5+ pips)
+  body_size = candles[phase_g_start].c - candles[phase_g_start].o (small positive)
+  The wick must be clearly visible — larger than the body.
 
 This sweep is the entry confirmation.
 If NO entry liquidity forms: the launch is still valid but the signal is weaker.
@@ -434,16 +438,20 @@ STEP 8: Run final checklist
 ### Phase Breakdown — Bullish Demand Zone
 
 ```
-Phase A — Downtrend Context (4-8 candles):
-  Small bearish bodies 5-12 pips. Establishes the structural high.
-  SWING HIGH RULE: The structural high must sit at candle index 1, 2 or 3
-  of the phase — NOT at candle 0. Candles before it rise toward it,
-  candles after fall away. Creates a real swing high, not a cliff edge.
+Phase A0 — Rising Context before Swing High (3-5 candles):
+  Small bullish candles rising toward the peak. Bodies 5-10 pips each.
+  Shows the viewer the uptrend that created the structural high.
+
+Phase A — Downtrend from Swing High (4-6 candles):
+  Small bearish candles falling after the peak. Bodies 5-12 pips each.
   VERIFY: structural_high_candle_index >= 1 (never 0)
 
-Phase B — Equal Lows / Liquidity (3-5 candles):
-  VERIFY: abs(candles[A].l - candles[B].l) <= 0.0003
-  Sell-side stops clustered here.
+Phase B — Equal Lows / Liquidity (4-8 candles):
+  EQUAL LOWS PATTERN — 2-3 touches with bounces between them:
+    Touch 1: price drops to level → small bounce up (3-8 pips)
+    Touch 2: price returns to same level → small bounce up again
+  Each bounce is visible. Lows within 3 pips of each other.
+  VERIFY: abs(candles[touch1].l - candles[touch2].l) <= 0.0003
 
 Phase C — Base / OB Zone (1-3 candles):
   Very small bodies. Institutional accumulation.
@@ -541,22 +549,38 @@ No BOS = no valid OB.
 ### Phase Breakdown — Bullish OB
 
 ```
-Phase A — Downtrend Context (4-8 candles):
-  LH-LL structure. Establishes the structural high that will be broken by BOS.
-  Bodies 5-12 pips each.
-  SWING HIGH RULE: The structural high (highest candle) must sit in the MIDDLE
-  of Phase A — at candle index 1, 2 or 3 of the phase — NOT at candle 0.
-  Candles before the peak rise slightly toward it.
-  Candles after the peak fall away from it forming LH-LL.
-  This creates a genuine swing high with context on both sides — not a cliff edge.
-  A shorter BOS line is always cleaner and more readable.
-  VERIFY: structural_high_candle_index >= 1 (never 0)
+Phase A0 — Rising Context before Swing High (3-5 candles):
+  Before the swing high, price must be seen RISING toward it.
+  3-5 small bullish candles climbing upward, bodies 5-10 pips each.
+  This shows the viewer WHERE the high came from — the trend that built it.
+  Without this, the swing high appears from nowhere with no context.
+  These candles are part of the overall candle count.
 
-Phase B — Equal Lows / Macro Sell-Side Liquidity (3-5 candles):
+Phase A — Downtrend from Swing High (4-6 candles):
+  After the Phase A0 peak, price falls forming LH-LL structure.
+  Bodies 5-12 pips each. Small bearish candles drifting lower.
+  SWING HIGH RULE: The peak candle is the LAST candle of Phase A0 / FIRST candle of Phase A.
+  It sits between rising candles (before) and falling candles (after).
+  VERIFY: structural_high_candle_index >= 1 (never 0 — never the very first candle)
+
+Phase B — Equal Lows / Macro Sell-Side Liquidity (4-8 candles):
   This is Type 2 liquidity (EQL). Retail buyers place stops below these lows.
-  VERIFY: abs(candles[A].l - candles[B].l) <= 0.0003
-  The macro LQ sweep happens when the impulse (Phase D) drives through Phase B lows.
-  Without this macro liquidity forming, the setup has no fuel.
+
+  EQUAL LOWS PATTERN — must show 2 or 3 touches WITH bounces between them:
+  The pattern is NOT flat consolidation. It is price TESTING a level multiple times:
+    Touch 1: price drops to the level → small bounce UP (3-8 pips) — looks like support
+    Touch 2: price drops back to same level → small bounce UP again — confirms "support"
+    (Optional Touch 3: same pattern if needed)
+  Each bounce must be visible — 3-8 pip bullish reaction between touches.
+  The lows of each touch must be within 3 pips of each other.
+
+  Candle pattern per touch:
+    Down candle reaching the level (body 5-10 pips)
+    Small bounce candle (bullish, 3-8 pips, closes above the low)
+  Between touches: 1-2 small candles drifting back toward the level
+
+  VERIFY: abs(candles[touch1_low].l - candles[touch2_low].l) <= 0.0003
+  Without visible bounces between touches, it reads as a flat range not a liquidity pool.
 
 Phase C — OB Candle (1-2 candles):
   VERIFY: candles[ob_index].c < candles[ob_index].o (bearish)
@@ -582,17 +606,26 @@ Phase F — Retrace to OB (4-10 candles):
     CHECK: close <= OB_bottom + 0.0010 = TRUE/FALSE
 
   ENTRY LIQUIDITY — forms during Phase F near the OB:
-  As price approaches the OB during retrace, 2-3 candles will consolidate
-  just ABOVE the OB forming equal lows. These are the "entry liquidity" —
-  retail stop losses sitting just below that consolidation.
-  Price will spike through these lows (wick below them) and close back above
-  before launching. This spike IS the entry signal from the Mastermind Plan.
+  As price retraces toward the OB, it forms a 2-3 touch equal lows pattern
+  just ABOVE the OB. Each touch bounces slightly before returning to the level.
 
-  Entry liquidity candle rules:
-    2-3 small candles with equal lows, sitting 0-5 pips above OB_bottom
-    Their lows must be: abs(candles[A].l - candles[B].l) <= 0.0003
-    entry_lq_level = candles[A].l (the shared low level)
-    The Phase G first candle wicks below entry_lq_level before closing up
+  Entry LQ touch/bounce pattern (same as macro equal lows):
+    Touch 1: candle drops to entry_lq_level → small bounce up 3-6 pips
+    Touch 2: candle returns to entry_lq_level → small bounce up again
+    (Optional Touch 3: same)
+  Bounces must be visible — not flat consolidation.
+  entry_lq_level = the shared low of the touches (within 3 pips)
+  VERIFY: abs(candles[A].l - candles[B].l) <= 0.0003
+
+  THE SWEEP CANDLE — must be a WICK, not a full body:
+  After the touches, one candle sweeps through entry_lq_level.
+  This is the Phase G first candle. It must have this shape:
+    OPEN: above entry_lq_level (price hasn't broken yet)
+    LOW: below entry_lq_level (wick pierces through — the sweep)
+    CLOSE: above entry_lq_level (body closes back above — NOT a breakdown)
+    The wick below must be at least 5 pips: entry_lq_level - candle.l >= 0.0005
+  The wick IS the sweep. The body closing above confirms the reversal.
+  A candle whose body CLOSES below the level is NOT a sweep — it's a breakdown.
 
 Phase G — Launch from OB to TP (3-8 candles):
   Price touches the OB zone and launches all the way to the structural high (TP).
