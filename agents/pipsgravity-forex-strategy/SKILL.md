@@ -535,7 +535,8 @@ MANDATORY ORDER: Evidence before conclusion. Never label the zone before showing
              VERIFY: tp_price = max(Phase D + Phase E highs)
    direction: "long"
    rr_ratio: floor((tp - entry) / (entry - sl)) — real R:R. Not capped.
-   start_ms: duration_ms - 2000
+   start_ms: chartStartMs + (candle_start + 1) * candle_interval_ms + 300
+             (appears immediately after entry candle draws — NOT duration_ms - 2000)
 ```
 
 ---
@@ -704,7 +705,8 @@ The viewer must watch conditions form — then see the conclusion.
    direction: "long"
    rr_ratio: floor((tp - entry) / (entry - sl)) — round DOWN to whole number
      Show the real R:R to structural high. Not capped.
-   start_ms: duration_ms - 2000
+   start_ms: chartStartMs + (candle_start + 1) * candle_interval_ms + 300
+             (appears immediately after entry candle draws — NOT duration_ms - 2000)
 ```
 
 ---
