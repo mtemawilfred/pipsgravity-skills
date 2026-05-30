@@ -39,6 +39,86 @@ The chart teaches. hook_text is the only text the viewer reads.
 
 ---
 
+## VIDEO TYPES — CHOOSE ONE BEFORE GENERATING ANYTHING
+
+Every CHART_SCENE video is one of three types. Decide which type before writing
+a single candle. This determines what phases are required and whether trade_setup
+is included.
+
+### TYPE 1 — CONCEPT ONLY
+**What it teaches:** What one concept IS — how it forms, what it looks like, why it matters.
+**No entry. No SL. No TP. No trade_setup overlay.**
+The video ends when the concept has been shown and labelled.
+
+Examples:
+- "This is what equal lows look like and how they get swept"
+- "This is what a Fair Value Gap is"
+- "This is what an Order Block looks like before it gets tested"
+
+Required phases: Whatever the concept needs to be visible. Nothing more.
+Required overlays: Concept labels only. No trade_setup.
+
+### TYPE 2 — FULL SETUP
+**What it teaches:** How to identify AND enter a trade using one or more concepts.
+**Includes entry, SL, TP, and trade_setup overlay.**
+**HARD RULE: Liquidity MUST be swept before the trade_setup appears.**
+
+The entry must have proof of liquidity being taken. Without this, the setup
+has no fuel — it is incomplete and the video cannot show a valid trade.
+
+Required overlays: All concept labels PLUS at least one `liquidity` overlay
+with `swept: true` appearing before the `trade_setup`.
+
+### TYPE 3 — COMBINATION
+**What it teaches:** How two or more concepts connect to form a complete picture.
+Can be concept-only or include a full setup.
+
+Examples:
+- "Equal lows form → get swept → OB is created → BOS confirms → entry at OB"
+- "How liquidity + FVG + BOS work together"
+
+Use the full phase structure. Label each concept as it appears.
+If showing an entry: same rule as TYPE 2 — liquidity must be swept first.
+
+---
+
+## THE LIQUIDITY-BEFORE-ENTRY RULE (Hard Rule — TYPE 2 and TYPE 3 with entry)
+
+**This rule applies to every full-setup video without exception.**
+
+Before price launches from any zone or order block, liquidity must be swept.
+This is not optional. An entry without a prior liquidity sweep is an incomplete
+setup — it has no institutional backing and will not sustain.
+
+**What "liquidity swept before entry" means:**
+At the moment the trade_setup appears, at least ONE of these must already be
+visible with swept: true in the overlays:
+
+Option A — MACRO liquidity swept:
+  The original equal highs/lows (Phase B) were swept during the impulse (Phase D).
+  A `liquidity` overlay with swept: true must appear after the impulse candles.
+
+Option B — ENTRY liquidity swept (IDM):
+  The inducement pattern formed during Phase F and the IDM low was swept.
+  A `liquidity` overlay with swept: true must appear before Phase G launch.
+
+Option C — BOTH (strongest setup):
+  Macro LQ swept at Phase D + IDM entry LQ swept at Phase G entry.
+  Show both swept overlays.
+
+**The IDM is Option B — it is one way to satisfy the liquidity rule.**
+It is not the only way. Consolidation lows near the OB, equal lows during
+retrace, any identifiable liquidity pool that gets swept before launch all
+count. The requirement is that SOME liquidity was taken and SHOWN with a
+swept: true overlay before the trade_setup appears.
+
+**If the candle data does not contain a liquidity sweep before Phase G:**
+Add candles to Phase F that show an IDM pattern, or adjust Phase D to
+confirm the macro liquidity was swept. Do not place a trade_setup without
+at least one swept: true liquidity overlay appearing first.
+
+---
+
 ## SCHEMA
 
 ```json
@@ -203,6 +283,61 @@ Equal Lows:  abs(candles[A].l - candles[B].l) <= 0.0003
 price_level for overlay = candles[A].h (or .l for lows)
 ```
 
+---
+
+### Trendline Liquidity
+
+**Mathematical formula (derived from two anchor candle/price points):**
+```
+anchor_1: candle_A (first swing point index), price_A (price at that swing)
+anchor_2: candle_B (second swing point index), price_B (price at that swing)
+
+slope = (price_B - price_A) / (candle_B - candle_A)
+price_at_candle_N = price_A + slope × (N - candle_A)
+
+Touch validation — every subsequent touch candle must be within 5 pips:
+  Down trendline (connecting lower highs):
+    abs(candles[N].h - price_at_candle_N) <= 0.0005
+  Up trendline (connecting higher lows):
+    abs(candles[N].l - price_at_candle_N) <= 0.0005
+
+Sweep confirmation:
+  Down trendline swept: candles[sweep].h > price_at_candle_sweep
+                    AND candles[sweep].c < price_at_candle_sweep
+  Up trendline swept:   candles[sweep].l < price_at_candle_sweep
+                    AND candles[sweep].c > price_at_candle_sweep
+  Wick size through trendline >= 0.0005 (5 pips minimum)
+```
+
+**Self-check before placing trendline overlay:**
+```
+STEP 1: Choose anchor_1 (first swing high/low touching the line)
+STEP 2: Choose anchor_2 (second swing high/low)
+STEP 3: Calculate slope
+STEP 4: For every subsequent touch candle, verify:
+         price_at_that_candle = price_A + slope × (candle_N - candle_A)
+         abs(candles[N].h or .l - price_at_candle_N) <= 0.0005
+         If FALSE: adjust candle price or choose different anchors
+STEP 5: Sweep candle: h or l crosses the trendline, body closes back
+```
+
+**Overlay schema:**
+```json
+{
+  "type": "trendline",
+  "candle_start": <candle index of anchor 1>,
+  "price_start": <price at anchor 1>,
+  "candle_end": <candle index of anchor 2>,
+  "price_end": <price at anchor 2>,
+  "extend_to": <optional: candle index to extend line to>,
+  "direction": "down",
+  "swept": false,
+  "label": "$$$ TRENDLINE LQ",
+  "start_ms": <after anchor 2 candle draws>
+}
+```
+When swept: change swept to true on a second overlay at the sweep candle timing.
+
 **Self-check:**
 ```
 IF abs(candles[A].h - candles[B].h) > 0.0003 → NOT equal. Adjust prices.
@@ -267,36 +402,129 @@ incomplete. Do not label it as a confirmed entry.
 
 ---
 
-### LIQUIDITY TYPES — Full Reference
+### LIQUIDITY TYPES — Full Reference (from PipsGravity Academy + Types of Liquidity doc)
 
-**From PipsGravity Liquidity and Manipulation document:**
+**WHY LIQUIDITY EXISTS:**
+Institutions (large banks, hedge funds) have position sizes too large to fill at a
+single price without a counterpart. They NEED retail stop losses to fill their orders.
+Every liquidity type is a different way retail creates clustered stops that institutions
+use as fuel. Price does not move impulsively without first collecting liquidity.
+"Price has fuel to move" = stops have been swept = institutional orders are now filled.
 
-**Type 1 — Equal Highs / Buy-Side Liquidity (EQH)**
-Formed by: Double tops, triple tops, ascending channel highs, H&S head
-Where stops sit: ABOVE the equal highs (sellers' stop losses)
-How it appears: Two or more highs at approximately the same price level
-Sweep confirmation: One candle wicks ABOVE the level, body closes BACK BELOW
-After sweep: Price has fuel to move DOWN (sold into all those buy stops)
+---
 
-**Type 2 — Equal Lows / Sell-Side Liquidity (EQL)**
-Formed by: Double bottoms, triple bottoms, descending channel lows, H&S neckline
-Where stops sit: BELOW the equal lows (buyers' stop losses)
-How it appears: Two or more lows at approximately the same price level
-Sweep confirmation: One candle wicks BELOW the level, body closes BACK ABOVE
-After sweep: Price has fuel to move UP (bought from all those sell stops)
+**TYPE 1 — TRENDLINE LIQUIDITY**
 
-**Type 3 — Breakout Trader Liquidity**
-Formed by: Traders who enter on a breakout of a level, place stops just inside
-Where stops sit: Just inside the broken level (10-20 pips back from the break)
-How it appears: Price breaks a level, small candles form a range just outside it
-Sweep confirmation: Price pulls back THROUGH the breakout level, spikes stops,
-then reverses and continues in the original direction
+How it forms:
+  An uptrend or downtrend trendline forms with 3+ touches (wicks meeting the line).
+  This is not coincidence — institutions know retail watches trendlines.
+  Retail traders on an uptrend trendline: buy on each touch, stops below the trendline.
+  Retail breakout traders: place orders on a trendline break, stops just inside.
+  Both groups create clustered liquidity AT and AROUND the trendline.
 
-**Type 4 — Entry Liquidity (LTF — near the OB/zone)**
-Formed by: The IDM (inducement) low that forms during Phase F retrace after 60%+ retraced
-Where stops sit: Below the equal lows of that consolidation
-Sweep confirmation: Phase G first candle wicks below those lows, closes above
-This is the entry trigger from the Mastermind Trading Plan
+What happens:
+  Price sweeps the trendline — breaks through it briefly with a wick — taking all
+  those stops from both the bounce traders AND the breakout traders.
+  After the sweep: momentum in the opposite direction proportional to liquidity collected.
+
+Mathematical representation:
+  Two anchor points define the trendline:
+    anchor_1: (candle_A, price_A) — first swing high or low touching the line
+    anchor_2: (candle_B, price_B) — second touch (later candle)
+  slope = (price_B - price_A) / (candle_B - candle_A)
+  price_at_candle_N = price_A + slope × (N - candle_A)
+
+  Touch validation (each subsequent touch must be close to the trendline):
+    For down trendline: abs(candles[N].h - price_at_candle_N) <= 0.0005
+    For up trendline:   abs(candles[N].l - price_at_candle_N) <= 0.0005
+
+  Sweep confirmation:
+    Down trendline swept: candles[N].h > price_at_candle_N AND candles[N].c < price_at_candle_N
+    Up trendline swept:   candles[N].l < price_at_candle_N AND candles[N].c > price_at_candle_N
+
+Overlay: use `trendline` overlay type with candle_start, price_start, candle_end, price_end.
+  swept: false while forming, swept: true after the sweep candle.
+
+---
+
+**TYPE 2 — RANGE LIQUIDITY (Support and Resistance)**
+
+How it forms:
+  Price bounces between two horizontal levels multiple times (2-3+ touches each side).
+  Buyers at support: stops placed below support.
+  Sellers at resistance: stops placed above resistance.
+  Both sides accumulate. The more touches, the more stops.
+
+What happens:
+  Price breaks below support (sweeping buy stops) then reverses upward — OR
+  Price breaks above resistance (sweeping sell stops) then reverses downward — OR
+  Both: sweeps below support then above resistance (or vice versa), collecting from
+  both sides before the real directional move.
+  Maximum fuel = both sides swept = largest expected momentum.
+
+Visual pattern on chart:
+  Horizontal consolidation with clear top and bottom levels.
+  Equal highs at resistance = $$$ above.
+  Equal lows at support = $$$ below.
+  Sweeps show as wicks through one or both levels.
+
+Overlay: use `liquidity` overlay for each level (swept: false then swept: true).
+
+---
+
+**TYPE 3 — EQUAL HIGHS / EQUAL LOWS (EQH / EQL)**
+
+How it forms:
+  Two or more highs at virtually the same price level (double/triple tops) = EQH.
+  Two or more lows at virtually the same price level (double/triple bottoms) = EQL.
+  These are classic retail patterns — every trader knows them.
+  Sellers at EQH put stops above the double top.
+  Buyers at EQL put stops below the double bottom.
+  That common knowledge IS what makes them liquidity traps.
+
+What happens:
+  Price wicks through the level — taking the stops — and closes back on the other side.
+  The wick IS the sweep. The body closing back confirms it.
+  After the sweep: impulsive move in the opposite direction.
+
+  Key insight from the document: a wick on the 1H timeframe is an OB or supply/demand
+  zone on the 15M timeframe. Trendline and EQH/EQL sweeps create zones on lower TFs.
+
+Mathematical check:
+  EQH: abs(candles[A].h - candles[B].h) <= 0.0003 (within 3 pips)
+  EQL: abs(candles[A].l - candles[B].l) <= 0.0003
+
+  Sweep (EQH):  candles[N].h > EQH_level AND candles[N].c < EQH_level
+  Sweep (EQL):  candles[N].l < EQL_level AND candles[N].c > EQL_level
+
+Overlay: use `liquidity` overlay with swept: false → swept: true.
+
+---
+
+**TYPE 4 — ENTRY LIQUIDITY (IDM — near the OB/Zone)**
+
+How it forms:
+  During Phase F retrace (after 60%+ of the retrace is complete), price forms a small
+  manipulation move near the OB — the Inducement (IDM).
+  Creates a specific low (for buys) or high (for sells) that traps early entries.
+  Those early traders put stops just below the IDM low.
+
+What happens:
+  Price wicks below the IDM low (taking those entry stops) and closes back above.
+  This is the final fuel collection before the real launch from the OB.
+  The sweep IS the entry signal from the Mastermind Trading Plan.
+
+Mathematical check:
+  candles[sweep].l < IDM_low AND candles[sweep].c > IDM_low
+  wick = IDM_low - candles[sweep].l >= 0.0005 (5 pips minimum)
+
+---
+
+**COMBINED LIQUIDITY MOVES:**
+The most powerful moves happen when MULTIPLE liquidity types are swept:
+  EQL swept at macro level (Phase B) → OB formed → BOS → EQL near OB (IDM) swept
+  Each additional sweep = more fuel = stronger sustained move.
+  A move backed by only one liquidity sweep is weaker than one backed by two or three.
 
 ---
 
@@ -873,16 +1101,20 @@ trade_setup: start_ms = (candle_start + 1) × candle_interval_ms + 300
 
 ## ALLOWED CONCEPTS (v4)
 
-| Concept              | Status     | Generate? |
-|----------------------|------------|-----------|
-| Order Block          | READY      | YES       |
-| Fair Value Gap       | READY      | YES       |
-| BOS                  | READY      | YES       |
-| Valid Demand/Supply  | READY      | YES       |
-| Liquidity Sweep      | READY      | YES       |
-| CHoCH                | NOT READY  | NO        |
-| Flip Setup           | NOT READY  | NO        |
-| Equilibrium          | NOT READY  | NO        |
+| Concept                          | Status     | Generate? | Notes |
+|----------------------------------|------------|-----------|-------|
+| Order Block                      | READY      | YES       | Full IDM + entry |
+| Fair Value Gap                   | PARTIAL    | YES       | As part of OB; standalone needs work |
+| BOS                              | READY      | YES       | Used in OB/demand sequence |
+| Valid Demand/Supply Zone         | READY      | YES       | Same structure as OB |
+| Liquidity — EQH/EQL              | READY      | YES       | Horizontal. TYPE 2 and TYPE 3 |
+| Liquidity — Trendline            | READY      | YES       | New `trendline` overlay added |
+| Liquidity — Range (S&R)          | READY      | YES       | Two `liquidity` overlays, both sides |
+| Liquidity — Entry (IDM)          | READY      | YES       | Part of OB/demand full setup |
+| Liquidity Sweep (concept video)  | PARTIAL    | YES       | No entry, TYPE 1 concept |
+| CHoCH                            | NOT READY  | NO        | Need more material |
+| Flip Setup                       | NOT READY  | NO        | Need more material |
+| Equilibrium                      | NOT READY  | NO        | Need more material |
 
 ---
 
