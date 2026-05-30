@@ -636,14 +636,31 @@ Phase F — Retrace to OB (4-10 candles):
     Must have a visible lower wick (looks like a natural support reaction).
     IDM_low = candles[idm_candle].l
 
-  Part 2 — The Fake Bounce (minimum 2 candles, any number):
+  Part 2 — The Fake Bounce (minimum 5 candles, typically 5-9):
     Bullish candles bouncing UP from the IDM low. This is the TRAP.
-    Price looks reversed — early buyers enter long here.
-    CRITICAL: Bounce candles MUST NEVER BREAK STRUCTURE.
+    More candles = more convincing trap = better teaching moment.
+    Price looks reversed — early buyers enter long, stops below IDM low.
+
+    TWO CRITICAL RULES:
+    RULE A — NEVER BREAK STRUCTURE:
       Close of EVERY bounce candle must be below the last Lower High in Phase F.
-      LH-LL structure of Phase F must stay intact throughout the bounce.
+      The LH-LL downtrend structure of Phase F must remain intact.
       VERIFY: max(bounce_candles.c) < last_lower_high_in_Phase_F
-    Bounce: 2+ candles rising, bodies 5-12 pips each, varied sizes.
+      If any bounce candle would exceed this: shorten its body.
+
+    RULE B — NEVER TOUCH THE OB:
+      The bounce candles must reverse WELL BEFORE reaching OB_top.
+      The lowest point of the bounce (before the sweep) must stay at least
+      15 pips ABOVE OB_top.
+      VERIFY: min(bounce_lows after IDM) >= OB_top + 0.0015
+      There must be clear visible space between the bounce and the OB zone.
+
+    Bounce candle pattern (make it look like a real reversal attempt):
+      - First 3-4 candles: rising bullish, bodies 6-12 pips each, varied
+      - Middle candles: some small doji/indecision candles mixed in
+      - Final 1-2 candles: slightly smaller, showing momentum slowing
+      - Total rise from IDM low: 20-40 pips (convincing but not structure-breaking)
+      - All bodies varied in size — never uniform
 
   Part 3 — The IDM Sweep (1 candle — this becomes Phase G candle 1):
     ONE candle sweeps below IDM_low, closes back above.
@@ -859,13 +876,24 @@ Use a `|` character to split the hook into blue | black for visual emphasis.
 Everything before | renders in BLUE (brand colour, key concept word).
 Everything after | renders in BLACK (the supporting context).
 
-Examples:
-  "ORDER BLOCK|The last bearish candle before the explosion."
-  "LIQUIDITY SWEEP|This is how smart money grabs your stops."
-  "INDUCEMENT|Price forms a fake bounce to trap early buyers."
-  "FAIR VALUE GAP|The institutional footprint hiding in plain sight."
+HOOK WRITING RULES:
+- Blue part (before |): 1-4 words MAX — the striking concept or claim
+- Black part (after |): the supporting line. Total hook max 12 words.
+- The hook must stop the scroll. It should feel like a statement or a challenge.
+- IMPORTANT: Do NOT copy or closely imitate the examples below.
+  The examples show STYLE and TONE only — create your own original version
+  that fits the specific concept being taught in the video.
+- Write as if speaking directly to a frustrated retail trader.
+- Tone: confident, slightly confrontational, never academic.
 
-Keep total hook under 12 words. Blue part: 1-3 words (the concept name).
+Style examples (DO NOT COPY — use as tone reference only):
+  Style 1 — Bold claim:     "TRADING IS DEAD|And this is why you keep losing."
+  Style 2 — Direct address: "YOUR TRADING FEELS STUCK|Here is exactly why."
+  Style 3 — Pattern call:   "STOP USING THIS SETUP|Try this one instead."
+  Style 4 — Challenge:      "THIS ADVICE SOUNDS SMART|But it doesn't actually work."
+
+Apply the same energy to whatever concept the video teaches — Order Block,
+FVG, Liquidity, BOS etc. The concept name is usually the blue part.
 
 ## HOOK TEXT EXAMPLES
 
