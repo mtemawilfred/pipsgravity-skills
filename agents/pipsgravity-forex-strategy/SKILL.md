@@ -70,7 +70,8 @@ The chart teaches. hook_text is the only text the viewer reads.
 
 **Duration formula:**
 ```
-duration_ms = 1800 + (candles.length × candle_interval_ms) + 4000
+duration_ms = (candles.length × candle_interval_ms) + 4000
+chart.start_ms = 0  (candles start immediately on frame 1 — no delay)
 ```
 
 ---
@@ -421,7 +422,8 @@ STEP 6: Place overlays in teaching order
         Each overlay start_ms >= that candle's finish time
         Minimum 800ms gap between consecutive overlays
 
-STEP 7: Calculate duration_ms = 1800 + (candles.length × candle_interval_ms) + 4000
+STEP 7: Calculate duration_ms = (candles.length × candle_interval_ms) + 4000
+chart.start_ms = 0  (candles start immediately on frame 1 — no delay)
 
 STEP 8: Run final checklist
 ```
@@ -924,7 +926,8 @@ FVG, Liquidity, BOS etc. The concept name is usually the blue part.
 - [ ] candles.length = sum of required phases only — no padding
 - [ ] visible_count = candles.length exactly
 - [ ] candle_interval_ms >= 400
-- [ ] duration_ms = 1800 + (candles.length × candle_interval_ms) + 4000
+- [ ] duration_ms = (candles.length × candle_interval_ms) + 4000
+chart.start_ms = 0  (candles start immediately on frame 1 — no delay)
 - [ ] Every candle: h >= max(o,c) AND l <= min(o,c)
 - [ ] Impulse candles are 3-5x larger than context in body size
 - [ ] FVG verified: candles[X+2].l > candles[X].h (if concept needs FVG)
