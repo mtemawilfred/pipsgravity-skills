@@ -1004,6 +1004,132 @@ The viewer must watch conditions form — then see the conclusion.
 
 ---
 
+## CONCEPT 4 — TRENDLINE LIQUIDITY
+
+### What It Is
+A trendline forms when price repeatedly touches a diagonal slope (3+ touches).
+Retail traders buy on uptrend touches or sell on downtrend touches, placing stops
+just below/above the trendline. Breakout traders place orders on a trendline break.
+Both groups cluster stops at the trendline area.
+Institutions sweep through the trendline with a wick, collect all those stops,
+then reverse with momentum proportional to the liquidity collected.
+
+This is a TYPE 1 (concept-only) or TYPE 2 (full setup) video.
+TYPE 1: Show the trendline forming, touches, the sweep. No trade_setup.
+TYPE 2: After the sweep, price finds an OB or demand zone and launches.
+         Include trade_setup and IDM if showing full entry.
+
+### Phase Breakdown — Down Trendline (most teachable)
+
+```
+Phase A — Downtrend Context (3-5 candles):
+  LH-LL structure establishing the bearish bias.
+  Shows the viewer we are in a downtrend. Context only.
+  Bodies 5-12 pips, varied.
+
+Phase B — Trendline Formation (10-16 candles):
+  The trendline forms through 3 touches of the descending line.
+  Between touches: normal bearish candles staying BELOW the trendline.
+  Each touch is a separate bounce reaction.
+
+  TOUCH PATTERN per touch (same structure as equal lows but diagonal):
+    Approach candle: drifts toward the trendline (2-4 candles)
+    Touch candle: wick reaches trendline, body closes below (retail sees "respect")
+    Bounce candle(s): small bullish reaction 3-8 pips before resuming lower
+    Between next touch: 2-4 bearish candles drifting back toward trendline
+
+  TRENDLINE MATH — must verify all 3 touches before generating JSON:
+    anchor_1: (candle_A, price_A) = first touch candle high
+    anchor_2: (candle_B, price_B) = second touch candle high
+    slope = (price_B - price_A) / (candle_B - candle_A)
+
+    For each subsequent touch candle N:
+      trendline_price_at_N = price_A + slope × (N - candle_A)
+      VERIFY: abs(candles[N].h - trendline_price_at_N) <= 0.0005
+      If FALSE: adjust candles[N].h until it meets the trendline within 5 pips.
+
+  After touch 3: retail sellers are confident. Stops sitting above each touch high.
+  Breakout traders have buy stops waiting above the trendline.
+
+Phase C — The Sweep (1-2 candles):
+  ONE candle wicks ABOVE the trendline (taking all the sell stops and buy stops)
+  and CLOSES BACK BELOW the trendline.
+  This is the liquidity grab. Body must close below the trendline.
+
+  Sweep candle math:
+    trendline_price_at_sweep = price_A + slope × (sweep_candle - candle_A)
+    VERIFY: candles[sweep].h > trendline_price_at_sweep (wick above)
+    VERIFY: candles[sweep].c < trendline_price_at_sweep (body closes below)
+    wick_above = candles[sweep].h - trendline_price_at_sweep >= 0.0005
+
+Phase D — Post-Sweep Momentum (3-5 candles):
+  After the sweep, price reverses with momentum.
+  Bearish candles 20-40 pips each — the fuel from the collected stops.
+  This confirms the trendline was a liquidity trap, not real resistance.
+
+(For TYPE 2 full setup: add Phase E as OB/demand zone reaction and entry)
+```
+
+### Overlay Teaching Sequence
+
+```
+1. After touch 2 candle → trendline (swept: false)
+   type: "trendline"
+   candle_start: candle_A (touch 1 index), price_start: touch_1_high
+   candle_end:   candle_B (touch 2 index), price_end: touch_2_high
+   extend_to: sweep_candle_index (line extends to show where price will approach)
+   direction: "down"
+   label: "$$$ TRENDLINE LQ"
+   PURPOSE: show the pattern forming — viewer sees the trendline and the stops
+
+2. After touch 2 → candle_label on touch 1
+   text: "TOUCH 1", candle_index: touch_1_candle
+   price_level: touch_1_high + 0.0005
+
+3. After touch 2 → candle_label on touch 2
+   text: "TOUCH 2", candle_index: touch_2_candle
+   price_level: touch_2_high + 0.0005
+
+4. After touch 3 → candle_label on touch 3
+   text: "TOUCH 3", candle_index: touch_3_candle
+   price_level: touch_3_high + 0.0005
+   PURPOSE: confirm the third touch — viewer understands the pattern
+
+5. After sweep candle → trendline (swept: true)
+   Same anchor points as overlay 1.
+   PURPOSE: show the trendline was just swept — liquidity was taken
+
+6. After sweep → floating_label
+   text: "RETAIL STOPS TAKEN"
+   candle_index: sweep_candle
+   color: brand.danger (#991B1B)
+   PURPOSE: name what just happened — stops taken = fuel for the move
+
+7. After Phase D first big candle → floating_label
+   text: "MOMENTUM AFTER SWEEP"
+   color: brand.accent (#C9A84C)
+   PURPOSE: connect the sweep to the momentum — "this is why price moved"
+
+(TYPE 2 only — after all the above):
+8. liquidity (swept: false) → liquidity (swept: true) → trade_setup
+   Same IDM pattern as OB/demand zone concept.
+```
+
+### Mathematical Checklist
+
+```
+- [ ] slope = (touch_2_high - touch_1_high) / (touch_2_candle - touch_1_candle) = [value]
+- [ ] Touch 1: abs(candles[touch_1].h - price_A) = 0 (anchor, always exact)
+- [ ] Touch 2: abs(candles[touch_2].h - (price_A + slope × (touch_2 - touch_1))) <= 0.0005
+- [ ] Touch 3: abs(candles[touch_3].h - (price_A + slope × (touch_3 - touch_1))) <= 0.0005
+- [ ] Sweep: candles[sweep].h > trendline_at_sweep AND candles[sweep].c < trendline_at_sweep
+- [ ] Sweep wick: candles[sweep].h - trendline_at_sweep >= 0.0005 (5 pips through trendline)
+- [ ] Phase D candles show clear momentum (20-40 pip bodies)
+- [ ] If TYPE 2: liquidity swept before trade_setup
+```
+
+---
+
 ## CONCEPT 3 — LIQUIDITY SWEEP
 
 ### What It Is
