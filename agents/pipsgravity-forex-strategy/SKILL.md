@@ -465,6 +465,13 @@ Phase D — Impulse (3-6 large bullish candles):
   VERIFY FVG: candles[last_base + 3].l > candles[last_base].h
 
 Phase E — BOS (1-2 candles):
+  The BOS candle closes ABOVE the structural high — that is all that is needed.
+  Phase E should be short. 1 BOS candle + 1 small continuation candle maximum.
+  The BOS candle does NOT need to be explosive. A candle that closes 5-15 pips
+  above the structural high is sufficient — the close is the confirmation.
+  After the close above, 1 optional follow-through candle (5-12 pip body) settles
+  the move. Phase E then ends. Phase F retrace begins immediately.
+  Do NOT add multiple large explosive candles continuing far above the structural high.
   VERIFY: candles[bos_index].c > Phase A structural high
 
 Phase F — Retrace (4-10 candles):
@@ -605,6 +612,13 @@ Phase D — Impulse (3-6 candles):
   VERIFY size: candles[ob_index+2].h - candles[ob_index].l >= 0.0020
 
 Phase E — BOS (1-2 candles):
+  The BOS candle closes ABOVE the structural high — that is all that is needed.
+  Phase E should be short. 1 BOS candle + 1 small continuation candle maximum.
+  The BOS candle does NOT need to be explosive. A candle that closes 5-15 pips
+  above the structural high is sufficient — the close is the confirmation.
+  After the close above, 1 optional follow-through candle (5-12 pip body) settles
+  the move. Phase E then ends. Phase F retrace begins immediately.
+  Do NOT add multiple large explosive candles continuing far above the structural high.
   VERIFY: candles[bos_index].c > Phase A structural high
 
 Phase F — Retrace to OB (4-10 candles):
@@ -650,12 +664,12 @@ Phase F — Retrace to OB (4-10 candles):
       VERIFY: max(bounce_candles.c) < last_lower_high_in_Phase_F
       If any bounce candle would exceed this: shorten its body.
 
-    RULE B — NEVER TOUCH THE OB:
-      The bounce candles must reverse WELL BEFORE reaching OB_top.
-      The lowest point of the bounce (before the sweep) must stay at least
-      15 pips ABOVE OB_top.
-      VERIFY: min(bounce_lows after IDM) >= OB_top + 0.0015
-      There must be clear visible space between the bounce and the OB zone.
+    RULE B — NEVER APPROACH THE OB:
+      IDM bounce candles must stay at least 20 pips above OB_top.
+      This keeps the OB and IDM visually separate so the viewer can
+      clearly see the two distinct levels.
+      VERIFY: min(all_bounce_candle_lows) >= OB_top + 0.0020 (20 pips)
+      If this fails: the IDM_low was placed too close to OB — revise.
 
     Bounce candle pattern (make it look like a real reversal attempt):
       - First 3-4 candles: rising bullish, bodies 6-12 pips each, varied
