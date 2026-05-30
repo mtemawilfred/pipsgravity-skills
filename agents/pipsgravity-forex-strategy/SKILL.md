@@ -564,24 +564,34 @@ Phase A — Downtrend from Swing High (4-6 candles):
   It sits between rising candles (before) and falling candles (after).
   VERIFY: structural_high_candle_index >= 1 (never 0 — never the very first candle)
 
-Phase B — Equal Lows / Macro Sell-Side Liquidity (4-8 candles):
-  This is Type 2 liquidity (EQL). Retail buyers place stops below these lows.
+Phase B — Equal Lows / Macro Sell-Side Liquidity (8-14 candles):
+  This is Type 2 liquidity (EQL). The equal lows look like strong support.
+  Retail buyers see "price always bounces here" and place stops below.
+  THIS IS THE MANIPULATION SETUP — the more convincing it looks, the better.
 
-  EQUAL LOWS PATTERN — must show 2 or 3 touches WITH bounces between them:
-  The pattern is NOT flat consolidation. It is price TESTING a level multiple times:
-    Touch 1: price drops to the level → small bounce UP (3-8 pips) — looks like support
-    Touch 2: price drops back to same level → small bounce UP again — confirms "support"
-    (Optional Touch 3: same pattern if needed)
-  Each bounce must be visible — 3-8 pip bullish reaction between touches.
-  The lows of each touch must be within 3 pips of each other.
+  EQUAL LOWS PATTERN — 2-3 specific touches with real bounces between them:
+  The key: only the TOUCH candles reach the level. All other candles are
+  normal varying-size candles ABOVE the level creating natural price action.
+  This makes it look like a real support level, not consolidation.
 
-  Candle pattern per touch:
-    Down candle reaching the level (body 5-10 pips)
-    Small bounce candle (bullish, 3-8 pips, closes above the low)
-  Between touches: 1-2 small candles drifting back toward the level
+  Per touch sequence:
+    - 2-4 normal candles drifting down toward the level (varied sizes, wicks)
+    - Touch candle: bearish, body 6-12 pips, low exactly at the level
+    - Bounce candle 1: bullish, 6-10 pip body — immediate reaction from level
+    - Bounce candle 2: bullish or doji, 3-7 pips — momentum continuing
+    - 2-4 normal candles drifting back down (mixed sizes, not all same direction)
+    - [repeat for touch 2, touch 3 if needed]
 
-  VERIFY: abs(candles[touch1_low].l - candles[touch2_low].l) <= 0.0003
-  Without visible bounces between touches, it reads as a flat range not a liquidity pool.
+  The bounce after each touch must be visible (10-20 pips total from low).
+  Between touches: price drifts naturally — mixed candles, varied sizes.
+  This creates the "ranging but respecting support" look of a real chart.
+
+  Total Phase B candle count: 8-14 candles.
+  Touch lows: abs(touch1.l - touch2.l) <= 0.0003 (within 3 pips)
+
+  IMPORTANT: Phase B equal lows use consolidation style (realistic ranging).
+  Phase F entry uses INDUCEMENT style (fake bounce + sweep) — these are DIFFERENT.
+  Do NOT use inducement style for Phase B. Use the ranging/consolidation style.
 
 Phase C — OB Candle (1-2 candles):
   VERIFY: candles[ob_index].c < candles[ob_index].o (bearish)
@@ -606,27 +616,49 @@ Phase F — Retrace to OB (4-10 candles):
     Last retrace candle close = [price]
     CHECK: close <= OB_bottom + 0.0010 = TRUE/FALSE
 
-  ENTRY LIQUIDITY — forms during Phase F near the OB:
-  As price retraces toward the OB, it forms a 2-3 touch equal lows pattern
-  just ABOVE the OB. Each touch bounces slightly before returning to the level.
 
-  Entry LQ touch/bounce pattern (same as macro equal lows):
-    Touch 1: candle drops to entry_lq_level → small bounce up 3-6 pips
-    Touch 2: candle returns to entry_lq_level → small bounce up again
-    (Optional Touch 3: same)
-  Bounces must be visible — not flat consolidation.
-  entry_lq_level = the shared low of the touches (within 3 pips)
-  VERIFY: abs(candles[A].l - candles[B].l) <= 0.0003
+  INDUCEMENT (IDM) — forms during Phase F, after 60%+ of retrace is complete:
 
-  THE SWEEP CANDLE — must be a WICK, not a full body:
-  After the touches, one candle sweeps through entry_lq_level.
-  This is the Phase G first candle. It must have this shape:
-    OPEN: above entry_lq_level (price hasn't broken yet)
-    LOW: below entry_lq_level (wick pierces through — the sweep)
-    CLOSE: above entry_lq_level (body closes back above — NOT a breakdown)
-    The wick below must be at least 5 pips: entry_lq_level - candle.l >= 0.0005
-  The wick IS the sweep. The body closing above confirms the reversal.
-  A candle whose body CLOSES below the level is NOT a sweep — it's a breakdown.
+  WHAT IS INDUCEMENT:
+  After Phase F has retraced 60%+ toward the OB, price forms a manipulation move
+  to trap early buyers. It looks like the reversal started — buyers enter long,
+  stops below the IDM low. Then price sweeps those stops before the real launch.
+
+  IDM TIMING RULE:
+  retrace_distance = Phase E peak high - OB_bottom
+  IDM begins only after price has fallen at least: retrace_distance × 0.60
+  Candles before that level = plain retrace candles. IDM only after 60%.
+
+  IDM PATTERN — three parts:
+
+  Part 1 — The IDM Low (1 candle):
+    A bearish candle that creates the specific low to be swept.
+    Must have a visible lower wick (looks like a natural support reaction).
+    IDM_low = candles[idm_candle].l
+
+  Part 2 — The Fake Bounce (minimum 2 candles, any number):
+    Bullish candles bouncing UP from the IDM low. This is the TRAP.
+    Price looks reversed — early buyers enter long here.
+    CRITICAL: Bounce candles MUST NEVER BREAK STRUCTURE.
+      Close of EVERY bounce candle must be below the last Lower High in Phase F.
+      LH-LL structure of Phase F must stay intact throughout the bounce.
+      VERIFY: max(bounce_candles.c) < last_lower_high_in_Phase_F
+    Bounce: 2+ candles rising, bodies 5-12 pips each, varied sizes.
+
+  Part 3 — The IDM Sweep (1 candle — this becomes Phase G candle 1):
+    ONE candle sweeps below IDM_low, closes back above.
+    SHAPE — wick candle only:
+      o: above IDM_low (opens in bounce territory)
+      l: below IDM_low by at least 5 pips (wick takes the stops)
+      c: above IDM_low (closes above — the real entry signal)
+    Prefer bullish body (c > o). Wick >= 5 pips below IDM_low.
+
+  VERIFY IDM:
+    60% retrace reached: [price] = Phase E high - (retrace_distance × 0.60) = [price] ✓/✗
+    IDM_low = [price], last LH in Phase F = [price]
+    Max bounce close = [price] < last LH = TRUE/FALSE
+    Sweep: l=[price] < IDM_low ✓, c=[price] > IDM_low ✓, wick=[N]pips ✓
+
 
 Phase G — Launch from OB to TP (3-8 candles):
   Price touches the OB zone and launches all the way to the structural high (TP).
@@ -820,6 +852,20 @@ trade_setup always last: start_ms = duration_ms - 2000
 | Equilibrium          | NOT READY  | NO        |
 
 ---
+
+## HOOK TEXT FORMAT
+
+Use a `|` character to split the hook into blue | black for visual emphasis.
+Everything before | renders in BLUE (brand colour, key concept word).
+Everything after | renders in BLACK (the supporting context).
+
+Examples:
+  "ORDER BLOCK|The last bearish candle before the explosion."
+  "LIQUIDITY SWEEP|This is how smart money grabs your stops."
+  "INDUCEMENT|Price forms a fake bounce to trap early buyers."
+  "FAIR VALUE GAP|The institutional footprint hiding in plain sight."
+
+Keep total hook under 12 words. Blue part: 1-3 words (the concept name).
 
 ## HOOK TEXT EXAMPLES
 
