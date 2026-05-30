@@ -32,8 +32,8 @@ and the mathematical references above. Follow every rule precisely.
 
 ## VIDEO STRUCTURE
 
-**HOOK (0ms to 1800ms):** Clean screen. Static hook_text title. No candles.
-**CHART (1800ms onward):** Candles draw one by one. Overlays appear in teaching order.
+**HOOK:** Static hook_text visible from frame 1. Candles also start at frame 1 (start_ms=0).
+**CHART:** Candles draw one by one from frame 1. Overlays appear in teaching order.
 
 The chart teaches. hook_text is the only text the viewer reads.
 
@@ -53,7 +53,7 @@ The chart teaches. hook_text is the only text the viewer reads.
     "font_heading": "Oswald", "font_body": "Inter"
   },
   "chart": {
-    "start_ms": 1800,
+    "start_ms": 0,
     "candles": [ { "o": number, "h": number, "l": number, "c": number } ],
     "candle_interval_ms": <400 minimum>,
     "visible_count": <MUST equal candles.length>,
@@ -216,7 +216,7 @@ retrace (Phase F) near the OB/demand zone. It is separate from the macro
 equal highs/lows that set up the original move.
 
 **What it is:**
-As price retraces toward the OB, it consolidates just above the OB forming
+As price retraces toward the OB, the IDM (inducement) pattern forms:
 2-3 candles with equal lows. Retail traders who see price approaching a
 "support level" place their buy stops below those lows.
 
@@ -226,16 +226,16 @@ This is called "liquidity for entry" in the Mastermind Trading Plan.
 
 **Mathematical conditions:**
 ```
-Entry LQ level = equal lows of Phase F consolidation near OB
+Entry LQ level = IDM_low (the specific low formed during the fake bounce)
   abs(candles[A].l - candles[B].l) <= 0.0003
-  entry_lq_level = candles[A].l
+  IDM_low = candles[A].l
   Sits 0-5 pips above OB_bottom
 
 Entry LQ sweep — Phase G first candle MUST be a wick candle:
-  candles[phase_g_start].o > entry_lq_level  (opens above — no gap down)
-  candles[phase_g_start].l < entry_lq_level  (wick pierces below)
-  candles[phase_g_start].c > entry_lq_level  (body closes ABOVE — not a breakdown)
-  wick_size = entry_lq_level - candles[phase_g_start].l >= 0.0005 (5+ pips)
+  candles[phase_g_start].o > IDM_low  (opens above — no gap down)
+  candles[phase_g_start].l < IDM_low  (wick pierces below)
+  candles[phase_g_start].c > IDM_low  (body closes ABOVE — not a breakdown)
+  wick_size = IDM_low - candles[phase_g_start].l >= 0.0005 (5+ pips)
   body_size = candles[phase_g_start].c - candles[phase_g_start].o (small positive)
   The wick must be clearly visible — larger than the body.
 
@@ -245,7 +245,7 @@ If NO entry liquidity forms: the launch is still valid but the signal is weaker.
 
 **Two types of liquidity in every OB/demand zone setup:**
 1. MACRO liquidity — the original equal highs/lows that set up the whole move
-2. ENTRY liquidity — the smaller equal lows that form during Phase F retrace
+2. ENTRY liquidity — the IDM low formed during Phase F retrace (inducement pattern)
 
 ---
 
@@ -293,7 +293,7 @@ Sweep confirmation: Price pulls back THROUGH the breakout level, spikes stops,
 then reverses and continues in the original direction
 
 **Type 4 — Entry Liquidity (LTF — near the OB/zone)**
-Formed by: The consolidation that forms during Phase F retrace near the OB
+Formed by: The IDM (inducement) low that forms during Phase F retrace after 60%+ retraced
 Where stops sit: Below the equal lows of that consolidation
 Sweep confirmation: Phase G first candle wicks below those lows, closes above
 This is the entry trigger from the Mastermind Trading Plan
@@ -415,7 +415,7 @@ STEP 4: RUN MATHEMATICAL VERIFICATION on your array:
         Adjust prices until ALL checks PASS
 
 STEP 5: Calculate candle finish times
-        Candle N finishes at: 1800 + (N+1) × candle_interval_ms
+        Candle N finishes at: (N+1) × candle_interval_ms
 
 STEP 6: Place overlays in teaching order
         Evidence labels first, concept label last
@@ -538,7 +538,7 @@ MANDATORY ORDER: Evidence before conclusion. Never label the zone before showing
    direction: "long"
    rr_ratio: floor((tp - entry) / (entry - sl)) — real R:R. Not capped.
    start_ms: chartStartMs + (candle_start + 1) * candle_interval_ms + 300
-             (appears immediately after entry candle draws — NOT duration_ms - 2000)
+             (appears immediately after entry candle draws)
 ```
 
 ---
@@ -734,14 +734,14 @@ The viewer must watch conditions form — then see the conclusion.
 
 6. Near last Phase F candles → liquidity (ENTRY LIQUIDITY)
    type: "liquidity", label: "$$$ ENTRY LQ", swept: false
-   price_level: equal lows level of Phase F consolidation near OB
-   candle_start: first equal-low candle of Phase F consolidation
+   price_level: IDM_low (specific low formed before the fake bounce)
+   candle_start: IDM low candle index
    candle_end: last equal-low candle before Phase G
    PURPOSE: show the entry liquidity pool that will be swept on entry
 
 7. Phase G first candle wicks below entry LQ → liquidity (swept = true)
    type: "liquidity", label: "LQ SWEPT — ENTRY", swept: true
-   price_level: same entry_lq_level as step 6
+   price_level: same IDM_low as step 6
    PURPOSE: confirm the sweep happened — this is the entry trigger
 
 8. floating_label "PRICE RETURNS TO ORDER BLOCK" (if used):
@@ -757,7 +757,7 @@ The viewer must watch conditions form — then see the conclusion.
    rr_ratio: floor((tp - entry) / (entry - sl)) — round DOWN to whole number
      Show the real R:R to structural high. Not capped.
    start_ms: chartStartMs + (candle_start + 1) * candle_interval_ms + 300
-             (appears immediately after entry candle draws — NOT duration_ms - 2000)
+             (appears immediately after entry candle draws)
 ```
 
 ---
@@ -848,11 +848,11 @@ If they look the same, the concept is invisible to the viewer.
 
 ```
 Candle N (0-indexed) finishes at:
-  1800 + (N + 1) × candle_interval_ms
+  (N + 1) × candle_interval_ms
 
 Every overlay start_ms >= that candle's finish time.
 Minimum 800ms gap between consecutive overlays.
-trade_setup always last: start_ms = duration_ms - 2000
+trade_setup: start_ms = (candle_start + 1) × candle_interval_ms + 300
 ```
 
 ---
@@ -940,7 +940,7 @@ chart.start_ms = 0  (candles start immediately on frame 1 — no delay)
 - [ ] Overlays in teaching order: liquidity → fvg → bos_label → candle_label → order_block/demand_zone → trade_setup
 - [ ] order_block and demand_zone appear AFTER fvg and bos_label — never before
 - [ ] GOLDEN RULE: liquidity was swept before the entry — macro LQ (Phase B) and/or entry LQ (Phase F/G)
-- [ ] Entry LQ sweep verified: Phase G candle wicks below Phase F equal lows AND closes above them
+- [ ] IDM sweep verified: sweep candle l < IDM_low, c > IDM_low, wick >= 5 pips
 - [ ] Phase G price reaches TP: candles[last_phase_g].c >= tp_price (structural high)
 - [ ] Minimum 800ms between consecutive overlays
-- [ ] trade_setup is last: start_ms = duration_ms - 2000
+- [ ] trade_setup start_ms = entry candle finish + 300ms (NOT duration_ms - 2000)
