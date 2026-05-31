@@ -219,29 +219,40 @@ Never label a pattern that is not mathematically present in the candle array.
 
 ### FVG (Fair Value Gap)
 
-**From Pietrus-914 SMC reference:**
+A Fair Value Gap is the space between candle X's HIGH and candle X+2's LOW.
+This is a wick-to-wick gap — the space that candle X+1 left completely unfilled.
+Candle X+1 is the impulse. Its body and wicks must not fill this gap.
+The FVG box spans from the TOP of candle X's wick to the BOTTOM of candle X+2's wick.
+
+MINIMUM SIZE: gap must be at least 10 pips (0.0010) to be visible on the chart.
+If the gap is smaller than 10 pips — adjust candle prices to widen it before placing the overlay.
+A 4-pip FVG box is invisible at chart scale. Do not mark it.
+
 ```
 Bullish FVG — condition between candle X and candle X+2:
-  candles[X+2].l > candles[X].h
+  candles[X+2].l > candles[X].h        ← wick of X+2 is above wick of X
 
   FVG box:
-    price_top    = candles[X+2].l
-    price_bottom = candles[X].h
+    price_top    = candles[X+2].l      ← bottom of candle X+2's lower wick
+    price_bottom = candles[X].h        ← top of candle X's upper wick
     candle_start = X+1
+    gap_size = price_top - price_bottom ← must be >= 0.0010 (10 pips)
 
 Bearish FVG:
-  candles[X+2].h < candles[X].l
+  candles[X+2].h < candles[X].l        ← wick of X+2 is below wick of X
 
   FVG box:
-    price_top    = candles[X].l
-    price_bottom = candles[X+2].h
+    price_top    = candles[X].l        ← bottom of candle X's lower wick
+    price_bottom = candles[X+2].h      ← top of candle X+2's upper wick
     candle_start = X+1
+    gap_size = price_top - price_bottom ← must be >= 0.0010 (10 pips)
 ```
 
 **Self-check:**
 ```
 IF candles[X+2].l <= candles[X].h → NO FVG. Adjust prices. Do not place label.
-IF candles[X+2].l >  candles[X].h → FVG confirmed. Place fvg overlay.
+IF candles[X+2].l > candles[X].h AND gap < 0.0010 → TOO SMALL. Widen the gap first.
+IF candles[X+2].l > candles[X].h AND gap >= 0.0010 → FVG confirmed. Place overlay.
 ```
 
 ---
@@ -764,8 +775,14 @@ MANDATORY ORDER: Evidence before conclusion. Never label the zone before showing
 
 7. At Phase G first candle → trade_setup (LAST overlay always)
    candle_start: first Phase G candle (touch-and-go)
-   entry_price: midpoint of demand zone
-   sl_price: zone_bottom - 0.0010
+   entry_price: sweep_candle.l + 0.0003  ← 3 pips above the wick low
+               RULES — all three must hold:
+               1. entry_price <= sweep_candle.l + 0.0003 (wick touches entry within 3 pips)
+               2. entry_price > sl_price (entry never crosses or touches SL)
+               3. entry_price >= zone_bottom (entry stays inside zone)
+               4. sweep_candle.l >= zone_bottom (wick stays inside zone)
+               Correct order: zone_top → entry_price → sweep_candle.l → zone_bottom → sl_price
+   sl_price: zone_bottom - 0.0010  ← always below zone
    tp_price: THE HIGHEST HIGH OF THE IMPULSE THAT BROKE STRUCTURE
              = max(candles[N].h) across ALL Phase D and Phase E candles
              = where the BOS move actually peaked — NOT the level it broke from
@@ -793,6 +810,18 @@ Phase A0 — Rising Context before Swing High (3-5 candles):
   This shows the viewer WHERE the high came from — the trend that built it.
   Without this, the swing high appears from nowhere with no context.
   These candles are part of the overall candle count.
+
+  MARKET STRUCTURE CONTEXT RULE — CRITICAL:
+  The Phase A0 starting price must be BELOW the Order Block zone.
+  If the OB sits at 1.0760-1.0772, Phase A0 must start BELOW 1.0760.
+  The viewer must see price moving UP from below the OB, forming the high,
+  then coming back DOWN through the OB zone.
+  Without this, the break of structure has no context — there is no visible
+  downtrend to break from. The chart must tell the story: price was low,
+  rose to form a high, that high was later broken to confirm the bullish bias.
+  
+  VERIFY: candles[0].o < OB_bottom
+  If FALSE: lower the starting price of Phase A0 until this is satisfied.
 
 Phase A — Downtrend from Swing High (4-6 candles):
   After the Phase A0 peak, price falls forming LH-LL structure.
@@ -992,8 +1021,14 @@ The viewer must watch conditions form — then see the conclusion.
 
 9. At Phase G first candle → trade_setup (LAST overlay always)
    candle_start: first Phase G candle (touch-and-go candle)
-   entry_price: (OB_top + OB_bottom) / 2
-   sl_price: OB_bottom - 0.0010
+   entry_price: sweep_candle.l + 0.0003  ← 3 pips above the wick low
+               RULES — all three must hold:
+               1. entry_price <= sweep_candle.l + 0.0003 (wick touches entry within 3 pips)
+               2. entry_price > sl_price (entry never crosses or touches SL)
+               3. entry_price >= OB_bottom (entry stays inside OB zone — never exits below)
+               4. sweep_candle.l >= OB_bottom (wick stays inside OB — never exits below)
+               Correct order top to bottom: OB_top → entry_price → sweep_candle.l → OB_bottom → sl_price
+   sl_price: OB_bottom - 0.0010  ← always below OB zone
    tp_price: Phase A structural high
    direction: "long"
    rr_ratio: floor((tp - entry) / (entry - sl)) — round DOWN to whole number
