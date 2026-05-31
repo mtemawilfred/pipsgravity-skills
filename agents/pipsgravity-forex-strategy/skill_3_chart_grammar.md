@@ -183,12 +183,30 @@ Structure per touch (repeat for each touch):
 [repeat for touch 2, touch 3 if needed]
 ```
 
+EQUAL LOWS VERIFICATION — run after generating all Phase B candles:
+  Identify touch1_low = candles[touch1_index].l
+  Identify touch2_low = candles[touch2_index].l
+  REQUIRED: abs(touch1_low - touch2_low) <= 0.0003 (within 3 pips)
+  FAIL: adjust the higher touch candle's low DOWN to match the lower touch.
+        Never adjust up — always bring the higher one down to match.
+  EQL_level = the lower of the two touch lows (the actual swept level)
+
+  WRONG: touch1.l = 1.0648, touch2.l = 1.0636 — gap is 12 pips. NOT equal lows.
+  RIGHT: touch1.l = 1.0648, touch2.l = 1.0647 — gap is 1 pip. Equal lows confirmed.
+
+BOUNCE VERIFICATION — run after equal lows check:
+  After each touch, price must rise at least 10 pips before returning.
+  bounce_high = max close of bounce candles after touch
+  REQUIRED: bounce_high >= touch_low + 0.0010
+  FAIL: add more bullish bounce candles until 10+ pip rise is visible.
+
+EQL_level for overlay = actual wick low of touch candles (must match verified value above)
+
 Educational visibility rules:
 - The equal lows level must be a flat horizontal line — not nearly flat, actually flat
-- Equal low lows within 3 pips: abs(touch1.l - touch2.l) <= 0.0003
 - Each bounce must rise at least 10 pips from the low (visible, not a micro-bounce)
-- Avoid 1-2 pip bodies anywhere in Phase B
 - Between touches: varied direction, natural drift — not a straight line
+- Avoid 1-2 pip bodies anywhere in Phase B
 
 WRONG: Two candles with identical lows, no bounce between them.
 RIGHT: Two touches 8-12 candles apart with a visible 15-pip bounce in between.
@@ -308,6 +326,26 @@ Candle 4 (small_impulse):  body 12-18 pips
 Decay rule: each candle slightly smaller than the previous.
 The decay shows momentum is slowing — this is natural.
 
+COHERENCE CHECK — CRITICAL — run BEFORE generating Phase D candles:
+  structural_high = candles[structural_high_candle_index].h
+  Phase D + Phase E combined must close ABOVE structural_high.
+  The BOS candle (Phase E) must close 5-15 pips above structural_high.
+  Therefore: Phase D peak high must reach AT LEAST structural_high - 0.0010
+  (within 10 pips of the structural high, so Phase E can close cleanly above it)
+
+  HOW TO ENSURE THIS:
+  Step 1: Note structural_high from Phase A0 peak candle.
+  Step 2: Set Phase D candle 1 open = OB_top + 0.0003 (just above OB zone).
+  Step 3: Calculate required Phase D range = structural_high - OB_top + 0.0020
+           (must travel from OB zone all the way above structural_high)
+  Step 4: Distribute this range across Phase D candles using decay pattern.
+  Step 5: Verify Phase D last candle high >= structural_high - 0.0010.
+  Step 6: Set Phase E BOS candle: o = Phase D last candle close,
+           c = structural_high + 0.0008 (8 pips above — clean BOS).
+
+  FAIL: if Phase D peak cannot reach structural_high — adjust starting price
+        or lower the Phase A0 swing high to be reachable from OB zone.
+
 FVG verification:
   Bullish: candles[ob_index+3].l > candles[ob_index].h AND gap >= 0.0010
   Bearish: candles[ob_index+3].h < candles[ob_index].l AND gap >= 0.0010
@@ -320,6 +358,7 @@ FVG zone:
 Educational visibility:
 - Phase D candles must be OBVIOUSLY larger than Phase A and Phase B candles
 - If they look similar: displacement is wrong. Scale up Phase D bodies.
+- Phase D peak MUST exceed structural_high — if not, the BOS label will be false.
 
 ---
 
@@ -394,18 +433,30 @@ Part 3 — Decline (2-3 bearish candles):
 
 Part 4 — IDM Sweep (1 candle = Phase G candle 1):
   o > IDM_low (opens above)
-  l < IDM_low by 5+ pips (wick pierces — takes stops)
+  l = IDM_low - 0.0008 to 0.0012 (wick pierces 8-12 pips below IDM_low)
   c > IDM_low (body closes above — entry confirmed)
   wick >= 2× body
 ```
 
-VERIFY IDM sweep:
-  candles[sweep].l < IDM_low AND (IDM_low - candles[sweep].l) >= 0.0005
-  candles[sweep].c > IDM_low
+IDM SWEEP WICK CAP — HARD RULE:
+  Minimum wick below IDM_low: 5 pips (0.0005)
+  Maximum wick below IDM_low: 15 pips (0.0015) — NEVER exceed this
+  Target: 8-12 pips below IDM_low for clean educational appearance
+  A 50-pip IDM wick is a news spike not a manipulation sweep — it breaks the educational concept.
+
+  WRONG: IDM_low=1.0661, sweep.l=1.0609 → wick=52 pips. INVALID. Regenerate.
+  RIGHT: IDM_low=1.0661, sweep.l=1.0651 → wick=10 pips. Valid.
+
+VERIFY IDM sweep — ALL THREE must pass:
+  1. candles[G1].l < IDM_low (wick goes below)
+  2. (IDM_low - candles[G1].l) >= 0.0005 (minimum 5 pips)
+  3. (IDM_low - candles[G1].l) <= 0.0015 (maximum 15 pips — hard cap)
+  4. candles[G1].c > IDM_low (body closes above)
+  FAIL on rule 3: raise candles[G1].l until wick is within 15 pips of IDM_low.
 
 Educational visibility:
 - The fake bounce must look convincing — 2-3 clear bullish candles rising
-- The IDM sweep wick must be the most prominent visual feature in Phase F
+- The IDM sweep wick must be proportional — clearly visible but not a spike
 - IDM_low and OB zone must be visually separate — never touching
 
 ---
@@ -579,9 +630,22 @@ If any check fails: fix the candle prices. Do not proceed with bad data.
 h >= max(o, c)   AND   l <= min(o, c)
 FAIL: raise h or lower l.
 
+### PRICE COHERENCE CHECK — run first for OB setups
+structural_high = candles[structural_high_candle_index].h
+Phase D peak = max(candles[N].h) for all Phase D candles
+REQUIRED: Phase D peak >= structural_high - 0.0010
+REQUIRED: Phase E BOS candle close > structural_high AND <= structural_high + 0.0015
+FAIL: raise Phase D candle bodies until Phase D peak reaches within 10 pips of structural_high.
+      If the chart price range is too compressed, lower the Phase A0 swing high instead.
+      Never place a BOS overlay if this check fails — a false BOS label destroys the concept.
+
 ### EQUAL LOWS CHECK
-abs(touch1.l - touch2.l) <= 0.0003
-FAIL: adjust one touch candle's low.
+touch1_low = candles[touch1_index].l
+touch2_low = candles[touch2_index].l
+REQUIRED: abs(touch1_low - touch2_low) <= 0.0003
+FAIL: bring the higher touch candle's low DOWN to match the lower one.
+      Never adjust up. EQL_level = the lower of the two verified touch lows.
+      Also verify each bounce rises at least 10 pips from its touch low.
 
 ### EQUAL HIGHS CHECK
 abs(touch1.h - touch2.h) <= 0.0003
@@ -610,7 +674,7 @@ FAIL: adjust candle prices to widen the gap.
 ### BOS CHECK (bullish)
 candles[bos_index].c > structural_high
 candles[bos_index].c <= structural_high + 0.0015 (not more than 15 pips above)
-FAIL: adjust bos candle close.
+FAIL: adjust bos candle close. If Phase D never reached structural_high, fix Phase D first.
 
 ### RETRACE END CHECK
 candles[last_F].c <= OB_top + 0.0010 (bullish)
@@ -620,10 +684,12 @@ FAIL: add more retrace candles or lower the last F candle's close.
 IDM_low >= OB_top + 0.0020
 FAIL: raise IDM_low or lower OB_top.
 
-### IDM SWEEP CHECK
-candles[G1].l < IDM_low AND (IDM_low - candles[G1].l) >= 0.0005
-candles[G1].c > IDM_low
-FAIL: adjust Phase G candle 1.
+### IDM SWEEP CHECK — ALL FOUR must pass
+1. candles[G1].l < IDM_low
+2. (IDM_low - candles[G1].l) >= 0.0005 (minimum 5 pip wick)
+3. (IDM_low - candles[G1].l) <= 0.0015 (maximum 15 pip wick — hard cap)
+4. candles[G1].c > IDM_low
+FAIL rule 3: raise candles[G1].l until wick is within 15 pips of IDM_low.
 
 ### TRENDLINE TOUCH CHECK
 abs(candles[touch].h - trendline_price_at_candle) <= 0.0005
