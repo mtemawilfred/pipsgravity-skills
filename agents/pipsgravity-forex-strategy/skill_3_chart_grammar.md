@@ -18,6 +18,24 @@ You do NOT decide:
 - Which concepts belong together (Skill 1 decided)
 - What the chart shape looks like (Skill 2 decided)
 
+### SCENE GOAL — READ THIS FIRST
+
+Read `scene_goal` from the skeleton before generating anything.
+
+| scene_goal | What it means | What changes |
+|---|---|---|
+| `trade_setup` | Chart teaches a full trade: entry, TP, SL | Include entry_zone, price_returns, launch phase, tp_price, sl_price |
+| `concept_demonstration` | Chart teaches one concept only | Omit entry_zone, tp_price, sl_price. No launch required. Chart ends when concept is shown. |
+
+For `concept_demonstration` charts:
+  - entry_zone, sl_price, tp_price, launch_candle are ALL omitted from the output
+  - Phase G (launch) may be omitted entirely or kept short as a "consequence" illustration
+  - The chart ends when the concept has been demonstrated clearly
+  - Example: a BOS lesson ends after price breaks structure. No retrace needed. No entry needed.
+  - Example: a liquidity lesson ends after the sweep. No OB needed. No BOS needed.
+
+If skeleton has no scene_goal field: default to `trade_setup`.
+
 You only answer one question:
 > "Given this skeleton, what is the cleanest possible educational chart I can draw?"
 
@@ -654,6 +672,12 @@ Bullish: candles[ob+2].l > candles[ob].h AND (candles[ob+2].l - candles[ob].h) >
 Bearish: candles[ob+2].h < candles[ob].l AND gap >= 0.0010
 FAIL: widen displacement candles.
 
+FVG COORDINATE SANITY CHECK:
+  Bullish FVG: price_top = candles[ob+2].l, price_bottom = candles[ob].h
+  REQUIRED: price_top > price_bottom
+  If price_top < price_bottom: coordinates are inverted. Swap them.
+  This is a naming error not a candle error — top must always be the higher price.
+
 ### BOS CHECK (educational minimum 10 pips)
 candles[bos].c > structural_high + 0.0010 (minimum 10 pips)
 candles[bos].c <= structural_high + 0.0020 (maximum 20 pips)
@@ -775,6 +799,7 @@ Raw JSON starting with {. No explanation. No preamble. No markdown fences.
   "phase_e_end": <last Phase E candle index — omit if no Phase E>,
   "setup_type": "<from blueprint>",
   "video_type": "<TYPE_1 | TYPE_2 | TYPE_3>",
+  "scene_goal": "<trade_setup | concept_demonstration>",
   "brand": {
     "primary": "#1B2A4A", "accent": "#C9A84C",
     "danger": "#991B1B", "success": "#166634",
@@ -840,24 +865,18 @@ Raw JSON starting with {. No explanation. No preamble. No markdown fences.
     ]
   },
   "educational_audit": {
-    "primary_concept": "<the main concept this chart teaches — e.g. order_block, fvg, bos>",
+    "primary_concept": "<the main concept this chart teaches — from skeleton>",
     "primary_concept_visible": <true if primary concept identifiable without labels in under 2 seconds>,
 
     "displacement_is_largest_move": <true if Phase D bodies >= 3× average Phase A/B bodies>,
-    "displacement_pips": <total pip range of Phase D>,
-    "context_avg_body_pips": <average body size of Phase A + B candles>,
-    "displacement_multiplier": <displacement_pips / context_avg_body_pips — must be >= 3.0>,
+    "displacement_pips": <(max Phase D candle high - min Phase D candle low) / 0.0001 — calculated from candle data>,
+    "context_avg_body_pips": <sum of abs(c-o) for all Phase A+B candles / count — calculated from candle data>,
+    "displacement_multiplier": <displacement_pips / context_avg_body_pips — must be >= 3.0 — calculated>,
 
     "retrace_visibly_slower": <true if Phase F avg body < Phase D avg body by at least 50%>,
-    "retrace_avg_body_pips": <average body size of Phase F candles>,
+    "retrace_avg_body_pips": <sum of abs(c-o) for all Phase F candles / count — calculated from candle data>,
 
-    "entry_liquidity_convincing": <true if the trap pattern would fool a retail trader>,
-
-    "ob_visibility_percent": <OB body size / total chart pip range × 100 — must be >= 1.0>,
-    "fvg_visibility_percent": <FVG gap size / total chart pip range × 100 — must be >= 1.0>,
-    "bos_visibility_percent": <BOS break pips / total chart pip range × 100 — must be >= 1.5>,
-
-    "all_concepts_visible_without_labels": <true if all structures pass the naked-eye test>
+    "entry_liquidity_convincing": <true if representation_quality is high or medium>
   },
   "concept_importance": [
     "<primary concept first — e.g. order_block>",
@@ -934,8 +953,10 @@ For fvg_standalone: candle_a/b/c are the three standalone FVG candles.
 ```json
 "entry_liquidity": {
   "type": "<idm | equal_lows | equal_highs | trendline_liquidity | range_liquidity | internal_liquidity>",
-  "selection_reason": "<why this type was chosen — e.g. 'best_supporting_liquidity_for_primary_concept', 'skeleton_specified_idm', 'equal_lows_already_present_in_retrace', 'trendline_formed_naturally_during_phase_F'>",
-  "selected_from": ["<all types that were candidates given the skeleton — e.g. idm, equal_lows>"],
+  "requested_entry_liquidity": "<the type Skill 2 specified in the skeleton>",
+  "generated_entry_liquidity": "<the type actually drawn — must match requested unless generation failed>",
+  "representation_quality": "<high | medium | poor | failed>",
+  "representation_quality_reason": "<why quality is high/medium/poor/failed — e.g. 'IDM bounce clearly visible, 3 bullish candles, 28-pip rise' or 'IDM low only 8 pips above entry zone, less convincing than ideal'>",
   "price_level": <price of the liquidity level — near entry zone, proximity >= 60%>,
   "sweep_candle": <index of the sweep candle — takes out the liquidity level>,
   "bounce_start_candle": <first candle of the trap pattern — IDM type only>,
@@ -947,6 +968,16 @@ For fvg_standalone: candle_a/b/c are the three standalone FVG candles.
   "proximity_percent": <calculated value — must be >= 60>
 }
 ```
+
+GENERATION RULE:
+  Always attempt to generate what Skill 2 requested.
+  generated_entry_liquidity = requested_entry_liquidity in all normal cases.
+  Only set generated_entry_liquidity = null if generation physically failed
+  (e.g. not enough candles in Phase F to form the pattern).
+  NEVER silently substitute a different type — if IDM was requested, draw IDM.
+  If the result is poor quality, report it honestly in representation_quality.
+  Parse & Validate will decide whether to accept or regenerate.
+
 Note: bounce_start_candle, bounce_peak_candle, reversal_start_candle populated for idm type only.
 For equal_lows/equal_highs: populate touch_1_candle and touch_2_candle instead.
 For range/trendline/internal: populate range_start_candle and range_end_candle instead.
@@ -994,16 +1025,21 @@ FINAL CHECKLIST (candles and structures only — no overlay checks):
 - [ ] candles.length = skeleton total_candles
 - [ ] visible_count = candles.length
 - [ ] duration_ms = (candles.length × 500) + 4000
+- [ ] scene_goal present (trade_setup or concept_demonstration)
+- [ ] If scene_goal = concept_demonstration: entry_zone, sl_price, tp_price omitted
 - [ ] phase_d_start and phase_e_end present (if applicable)
 - [ ] setup_type and video_type present
 - [ ] Every candle OHLC valid (h >= max(o,c), l <= min(o,c))
 - [ ] EQL: abs(touch1.l - touch2.l) <= 0.0003
 - [ ] OB geometry: EQL_level - OB_top >= 0.0010
 - [ ] FVG: candles[c+2].l > candles[c].h AND gap >= 0.0010
+- [ ] FVG: price_top > price_bottom (top must be numerically higher than bottom)
 - [ ] BOS: candles[bos].c > structural_high + 0.0010 AND <= structural_high + 0.0020
 - [ ] BOS structural_high sourced from highest_high_in_phase(skeleton.swing_high.phase)
 - [ ] entry_liquidity proximity_percent >= 60
 - [ ] entry_liquidity price_level >= entry_zone_top + 0.0015
+- [ ] entry_liquidity requested_entry_liquidity matches generated_entry_liquidity (or generated = null with reason)
+- [ ] entry_liquidity representation_quality populated (high/medium/poor/failed)
 - [ ] retrace_low <= entry_zone_top + 0.0005 (price physically entered zone)
 - [ ] launch_candle >= sweep_candle (launch never before sweep)
 - [ ] entry_price = zone midpoint
@@ -1013,14 +1049,10 @@ FINAL CHECKLIST (candles and structures only — no overlay checks):
 - [ ] failure_reasons populated for every false flag (omit field if all pass)
 - [ ] All validation flags = true before outputting
 - [ ] If any validation flag = false: identify which section failed, fix it, re-verify
-- [ ] educational_audit block present with all visibility percentages calculated
+- [ ] educational_audit present — displacement_multiplier, retrace_avg_body_pips calculated from candle data
 - [ ] displacement_multiplier >= 3.0
-- [ ] ob_visibility_percent >= 1.0
-- [ ] fvg_visibility_percent >= 1.0
-- [ ] bos_visibility_percent >= 1.5
-- [ ] all_concepts_visible_without_labels = true
+- [ ] entry_liquidity_convincing = (representation_quality == high or medium)
 - [ ] concept_importance array present, ordered from most to least important
-- [ ] entry_liquidity has selection_reason and selected_from populated
 - [ ] All 11 visibility checks passed
 - [ ] All mathematical validation checks passed
 - [ ] NO overlays array in the output
