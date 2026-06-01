@@ -129,28 +129,42 @@ Context bodies must look visibly smaller than displacement bodies.
 
 ### TEMPLATE: equal_lows
 
+MATHEMATICAL SOURCE: Pietrus-914 SMC reference — IsTweezerBottom()
+  abs(candles[A].l - candles[B].l) <= 0.0002 (2-pip tolerance — tighter than 3)
+
+GENERATION ORDER — SET THE LEVEL FIRST, THEN BUILD CANDLES:
+  Step 1: Decide EQL_level price first (e.g. 1.0648). This is your anchor.
+  Step 2: For OB setups, set OB_top = EQL_level - 0.0015 (ensures 15-pip gap).
+           NEVER generate OB first and try to fit EQL above it.
+  Step 3: Generate touch candle A — set l = EQL_level exactly.
+  Step 4: Generate bounce candles (10-20 pip rise, bodies 6-10 pips).
+  Step 5: Generate drift candles back toward the level.
+  Step 6: Generate touch candle B — set l = EQL_level or EQL_level ± 0.0001.
+  Step 7: VERIFY: abs(touch_A.l - touch_B.l) <= 0.0002. Adjust if needed.
+
 Structure per touch:
 ```
-2-4 drift candles approaching the level (drop, bodies 5-12 pips)
-1 touch candle: LOW exactly at EQL level (wick, not close)
-2-3 bounce candles: bodies 6-10 pips, rise 10-20 pips total
+2-4 drift candles approaching the level (bearish, bodies 5-12 pips)
+1 touch candle: l = EQL_level exactly (set this explicitly — do not approximate)
+2-3 bounce candles: bullish, bodies 6-10 pips, total rise 10-20 pips
 2-4 drift candles returning toward the level
 [repeat for touch 2]
 ```
 
-EQUAL LOWS VERIFICATION:
-  touch1_low = candles[touch1_index].l
-  touch2_low = candles[touch2_index].l
-  REQUIRED: abs(touch1_low - touch2_low) <= 0.0003
-  FAIL: lower the higher touch candle's low to match. EQL_level = lower of the two.
-
 BOUNCE VERIFICATION:
-  REQUIRED: bounce_high >= touch_low + 0.0010 (10+ pip visible bounce after each touch)
+  bounce_peak = max close of bounce candles after touch
+  REQUIRED: bounce_peak - EQL_level >= 0.0010
+
+OB GEOMETRY (OB setups only):
+  REQUIRED: EQL_level - OB_top >= 0.0010
+  Set OB prices after setting EQL_level, never before.
 
 ---
 
 ### TEMPLATE: equal_highs
-Mirror of equal_lows. Touch candle HIGH at EQH level. Rejection candles drop 10-20 pips.
+Mirror of equal_lows. Set EQH_level first, then build candles to match.
+Touch candle HIGH = EQH_level exactly. Rejection candles drop 10-20 pips.
+abs(touch_A.h - touch_B.h) <= 0.0002
 
 ---
 
@@ -172,19 +186,42 @@ EQH: candles[N].h > EQH AND candles[N].c < EQH AND (candles[N].h - EQH) >= 0.000
 
 ### TEMPLATE: ob_candle
 
-For bullish setup:
-```
-1 bearish candle (c < o), body 6-12 pips
-Sits BELOW the EQL level
-REQUIRED: EQL_level - OB_top >= 0.0010 (10+ pip gap — proves sweep happened)
-```
+MATHEMATICAL SOURCE: Pietrus-914 SMC reference — FindBullishOB()
+  Bullish OB: close[i] < open[i] (BEARISH candle) AND strong bullish move follows
+  Bearish OB: close[i] > open[i] (BULLISH candle) AND strong bearish move follows
 
-CRITICAL GEOMETRY (bullish):
-  Top to bottom order: EQL_level → [gap >= 10 pips] → OB_top → OB body → OB_bottom
-  WRONG: OB_top=1.065, EQL=1.0646 — OB sits ABOVE liquidity. Invalid.
-  RIGHT: OB_top=1.0648, EQL=1.066 — EQL is 12 pips above OB_top. Valid.
+GENERATION ORDER:
+  Step 1: EQL_level is already set.
+  Step 2: Set OB_top = EQL_level - 0.0015.
+  Step 3: Set OB_bottom = OB_top - 0.0020 (20-pip OB zone).
+  Step 4: Generate OB candle with: o > c (bearish) for bullish setup.
+          o = OB_top - 0.0002 (just inside the zone top)
+          c = OB_bottom + 0.0003 (just inside the zone bottom)
+          h = OB_top (full wick high)
+          l = OB_bottom (full wick low)
+  Step 5: VERIFY: c < o (bearish confirmed). VERIFY: EQL_level - h >= 0.0010.
 
-OB zone: price_top = candles[ob_index].h, price_bottom = candles[ob_index].l
+EDUCATIONAL VISIBILITY — OB CANDLE MUST STAND OUT:
+  The OB candle must be the LARGEST BEARISH candle body in the 5 candles before the impulse.
+  A viewer seeing the chart must immediately think "that candle is different from the others."
+  To achieve this:
+    OB candle body = max(surrounding 4 candle bodies) × 1.5 (at minimum)
+    Surrounding 4 candles before OB: bodies 4-8 pips (small context candles)
+    OB candle body: 15-22 pips (clearly stands out)
+  VERIFY: candles[ob_index] body > max(bodies of candles[ob_index-4 to ob_index-1]) × 1.3
+
+DIRECTION FIELD RULE — READ CAREFULLY:
+  direction = "bearish" means the OB CANDLE ITSELF is bearish (c < o)
+  direction = "bullish" means the OB CANDLE ITSELF is bullish (c > o)
+  For a BULLISH SETUP: OB candle is bearish → direction: "bearish"
+  For a BEARISH SETUP: OB candle is bullish → direction: "bullish"
+  The direction field describes the CANDLE COLOUR, not the trade direction.
+  WRONG: bullish setup with direction: "bullish" — that means a bullish OB candle which is INVALID.
+  RIGHT: bullish setup with direction: "bearish" — bearish OB candle before bullish impulse.
+
+OB zone coordinates:
+  price_top    = candles[ob_index].h (full wick)
+  price_bottom = candles[ob_index].l (full wick)
 
 ---
 
@@ -215,15 +252,21 @@ FVG — USE EARLIEST VALID GAP FROM OB CANDLE:
 
 ### TEMPLATE: bos
 
+EDUCATIONAL VISIBILITY RULE:
+  The BOS must be OBVIOUS. A beginner must instantly see price has crossed the level.
+  Technically valid at 2-3 pips. Educationally visible at 10+ pips.
+  Use the educational standard, not the technical minimum.
+
 ```
-1 BOS candle: body closes 5-15 pips beyond structural high/low
-Body size: 8-15 pips. NOT explosive.
-1 optional follow-through candle (5-8 pips) — then STOP.
+1 BOS candle: body closes 10-20 pips beyond structural high/low
+  (minimum 10 pips — not 5. Viewer must see a clear break.)
+Body size: 12-20 pips.
+1 optional follow-through candle (8-12 pips) — then STOP.
 ```
 
 structural_high_candle_index = Phase A0 peak candle (never 0)
-VERIFY: candles[bos_index].c > structural_high
-VERIFY: candles[bos_index].c <= structural_high + 0.0015
+VERIFY: candles[bos_index].c > structural_high + 0.0010 (minimum 10 pips above)
+VERIFY: candles[bos_index].c <= structural_high + 0.0020 (maximum 20 pips above)
 
 ---
 
@@ -242,40 +285,88 @@ THE CONCEPT:
   looking like a valid entry to retail traders. They enter. Price reverses and
   continues to the actual OB/entry zone. No sweep required. A plain reversal works.
 
-WHAT MAKES IT CONVINCING:
-  - Sits inside the FVG zone (retail expects a bounce here)
-  - 2-3 clean bullish candles rising clearly (looks like a real reversal)
-  - Clear space between fake bounce and entry zone below
+CRITICAL: READ IDM FORMATION FROM SKELETON FIRST.
+  The skeleton's phaseF.idm_formation tells you exactly:
+    - retrace_candles: how many plain retrace candles before IDM starts
+    - low_candle: the offset within Phase F where the IDM low forms
+    - bounce_candles: how many bullish bounce candles to generate (minimum 3)
+    - peak_candle_offset: which candle in Phase F is the bounce peak
+    - decline_candles: how many bearish candles after the peak (minimum 2)
+
+  Generate each part explicitly using these counts. Do NOT invent the IDM pattern.
+  The skeleton already decided how it looks. Your job is to draw it.
+
+EDUCATIONAL IDM SHAPE (must look exactly like this):
+```
+            peak
+             ▲
+           /   \
+          /     \
+IDM_low ●        \
+                  \
+                   ▼ (decline back toward OB)
+```
+NOT this:
+```
+\/\/\/\/\/ (random noise — reject this)
+```
 
 POSITIONING:
   ideal_idm_level = fvg_price_bottom + ((fvg_price_top - fvg_price_bottom) × 0.30)
   REQUIRED: IDM_level >= entry_zone_top + 0.0015 (15+ pips above zone)
   REQUIRED: fvg_bottom - 0.0010 <= IDM_level <= fvg_top
 
-STRUCTURE:
-```
-Part 1 — Plain retrace until price enters FVG zone
-Part 2 — Fake bounce: 2-3 bullish candles, 20-35 pips total rise
-  RULE A: no bounce candle close > last lower high in Phase F
-  RULE B: no bounce candle touches entry_zone_top
-Part 3 — Reversal: 2-3 bearish candles declining back toward zone
-Part 4 — Entry: Phase G candle 1 opens at/near entry_zone_top, launches
-```
+GENERATION SEQUENCE:
+  Part 1 — Plain retrace (skeleton.retrace_candles):
+    Alternating drop/small_bounce candles (8-15 pips each).
+    Stop when price enters FVG zone.
+
+  Part 2 — IDM low candle (1 candle):
+    One bearish candle. Sets the IDM_low price.
+    IDM_low = OB_top + 0.0020 at minimum (20 pips above OB zone).
+
+  Part 3 — Convincing fake bounce (skeleton.bounce_candles — minimum 3):
+    MINIMUM 3 bullish candles. Each body 8-14 pips. Rising clearly.
+    Total rise from IDM_low: 25-40 pips.
+    Each candle higher than the previous — looks like a real reversal starting.
+    No bounce candle close > last lower high in Phase F.
+    No bounce candle touches entry_zone_top.
+
+  Part 4 — Peak candle: highest close of the bounce sequence.
+
+  Part 5 — Decline (skeleton.decline_candles — minimum 2):
+    2-3 bearish candles from peak, declining back toward OB zone.
+    Bodies 10-18 pips. Clearly bearish — the fake entry is clearly failing.
+
+  Part 6 — Price enters OB zone:
+    Final retrace candles bring price INTO the OB zone.
+    REQUIRED: at least one candle low touches or enters OB zone (candle.l <= OB_top).
+    This is the moment "PRICE RETURNS TO OB" is triggered.
 
 VERIFY:
   1. IDM_level >= entry_zone_top + 0.0015
   2. IDM_level inside FVG: fvg_bottom - 0.0010 <= IDM_level <= fvg_top
-  3. Fake bounce rises >= 20 pips
-  4. No bounce candle touches entry_zone_top
+  3. Fake bounce rises >= 25 pips from IDM_level (minimum 3 candles)
+  4. Decline clearly visible — minimum 2 bearish candles after peak
+  5. At least one Phase F candle after the decline has l <= OB_top (price enters zone)
 
 ---
 
 ### TEMPLATE: retracement
 
 Alternating: drop (8-15) → small_bounce (4-8) → drop (8-15) → small_bounce (4-8)
-For IDM setups: stop when price enters FVG zone — that is where the fake bounce begins.
-For non-IDM: last candle close within 10 pips of zone top.
-Retrace candles must be VISIBLY smaller than displacement candles.
+
+For IDM setups:
+  Stop when price enters FVG zone — that is where the fake bounce begins.
+  After the IDM bounce and decline: price must continue to enter the OB zone.
+  REQUIRED: at least one candle's low <= OB_top (price physically enters the box).
+  A candle that stops 10 pips above the OB means price never returned — the lesson is lost.
+
+For non-IDM:
+  Last candle close must be <= OB_top + 0.0003 (at or inside the zone top).
+  NOT 10 pips above. AT the zone or inside it.
+
+Retrace candles must be VISIBLY smaller and more irregular than displacement candles.
 
 ---
 
@@ -323,35 +414,49 @@ h >= max(o, c) AND l <= min(o, c) — every candle.
 
 ### PRICE COHERENCE CHECK (OB setups)
 Phase D peak >= structural_high - 0.0010
-BOS close > structural_high AND <= structural_high + 0.0015
+BOS close > structural_high + 0.0010 (10 pip min) AND <= structural_high + 0.0020 (20 pip max)
 FAIL: scale up Phase D or lower Phase A0 swing high.
 
 ### OB GEOMETRY CHECK
 EQL_level - OB_top >= 0.0010 (EQL must be 10+ pips ABOVE OB_top)
 FAIL: lower OB candle prices until gap exists.
 
-### EQUAL LOWS CHECK
-abs(touch1_low - touch2_low) <= 0.0003
+### EQUAL LOWS CHECK (Pietrus-914 IsTweezerBottom formula)
+abs(touch_A.l - touch_B.l) <= 0.0002  (2-pip tolerance)
 Each bounce >= 10 pips from touch low.
+FAIL: set touch B's low to exactly match touch A's low (or within 0.0001).
 
 ### EQL SWEEP CHECK
 candles[N].l < EQL AND candles[N].c > EQL AND (EQL - candles[N].l) >= 0.0005
 
-### OB CANDLE DIRECTION
-Bullish: candles[ob_index].c < candles[ob_index].o
-FAIL: make bearish.
+### OB CANDLE VISIBILITY CHECK
+OB candle body must be the LARGEST bearish body in candles[ob-4 to ob].
+VERIFY: abs(candles[ob].c - candles[ob].o) > max(abs(candles[i].c - candles[i].o) for i in range(ob-4, ob)) × 1.3
+FAIL: increase OB candle body size, reduce surrounding candle bodies.
 
-### FVG CHECK
-candles[ob+2].l > candles[ob].h AND gap >= 0.0010
+### OB CANDLE DIRECTION CHECK
+Bullish setup: candles[ob_index].c < candles[ob_index].o → direction: "bearish"
+Bearish setup: candles[ob_index].c > candles[ob_index].o → direction: "bullish"
+direction describes the CANDLE COLOUR, not the trade.
+FAIL: regenerate OB candle with correct open/close. A bullish OB candle in a bullish setup is INVALID.
+
+### FVG CHECK (Pietrus-914 DetectBullishFVG formula)
+Bullish: candles[ob+2].l > candles[ob].h AND (candles[ob+2].l - candles[ob].h) >= 0.0010
+Bearish: candles[ob+2].h < candles[ob].l AND gap >= 0.0010
 FAIL: widen displacement candles.
 
-### BOS CHECK
-candles[bos].c > structural_high AND <= structural_high + 0.0015
+### BOS CHECK (educational minimum 10 pips)
+candles[bos].c > structural_high + 0.0010 (minimum 10 pips)
+candles[bos].c <= structural_high + 0.0020 (maximum 20 pips)
+FAIL: adjust bos candle close upward. Fix Phase D first if it never reached structural_high.
 
 ### IDM POSITION CHECK
 IDM_level >= entry_zone_top + 0.0015
 fvg_bottom - 0.0010 <= IDM_level <= fvg_top
-Fake bounce rise >= 0.0020 from IDM_level.
+Fake bounce rise >= 0.0025 from IDM_level (minimum 25 pips — must look convincing).
+Minimum bounce candles: 3 (from skeleton.phaseF.idm_formation.bounce_candles).
+Minimum decline candles: 2 (from skeleton.phaseF.idm_formation.decline_candles).
+At least one post-IDM candle must have l <= OB_top (price enters the zone).
 
 ### RETRACE CHECK (non-IDM)
 last_F_candle.c <= zone_top + 0.0010
@@ -366,18 +471,65 @@ entry_price = zone_bottom + ((zone_top - zone_bottom) × 0.5)
 
 ## SECTION 7 — EDUCATIONAL VISIBILITY VALIDATION
 
-All must be YES before outputting. Fix and re-verify if any NO.
+THE STANDARD:
+  You are generating TEACHABLE charts, not TRADABLE charts.
+  A tradable chart looks like real market data.
+  A teachable chart makes every concept identifiable by a beginner in 2 seconds.
+  These are not the same goal. Always optimise for teachable.
 
-Q1: Can a beginner identify the concept in under 3 seconds without labels?
-Q2: Is the liquidity level an obvious flat/diagonal line at zoomed-out view?
-Q3: Does the EQL/EQH label appear AFTER all touches complete? (P&V handles via Step 10n)
-Q4: Does the sweep candle stand out from surrounding candles?
-Q5: Is displacement the strongest move on the chart? (3x+ context size)
-Q6: Is retracement visibly slower and smaller than displacement?
-Q7: Does the IDM fake bounce look like a convincing entry — inside the FVG, above OB?
-Q8: Is entry price at the zone midpoint (not the top edge)?
-Q9: Does price clearly reach TP on the chart?
-Q10: Are all labels at their correct price levels with no overlaps?
+  > "Every structure must be identifiable by a beginner without reading the label.
+  >  If the label is removed and the structure becomes difficult to recognise,
+  >  regenerate that section of the chart."
+
+ALL must be YES before outputting. If any is NO: fix that section and re-verify.
+
+Q1: Can a beginner identify the concept in under 2 seconds without labels?
+  Test: mentally remove all overlays. Is the pattern still unmistakable?
+  NO → the candle shapes are wrong. Exaggerate the structure further.
+
+Q2: Are the equal lows obviously flat — not "nearly flat"?
+  Two lows must look like the SAME horizontal level to the naked eye.
+  NO → reduce the gap between touch lows to 1-2 pips maximum.
+
+Q3: Does the sweep candle visually dominate its neighbours?
+  The wick must be at least 2× the body AND clearly longer than surrounding candles.
+  NO → increase the wick, reduce surrounding candle size.
+
+Q4: Is displacement the STRONGEST and FASTEST move on the entire chart?
+  Phase D candles must be at minimum 3× the size of Phase A/B candles.
+  A viewer's eye must go straight to Phase D — it should be the most dramatic movement.
+  NO → scale up Phase D bodies, scale down context phases.
+
+Q5: Is retracement visibly SLOWER and more IRREGULAR than displacement?
+  Phase F must look like hesitation, not a clean directional move.
+  NO → shrink Phase F candle bodies, add more mixed-direction candles.
+
+Q6: Does the IDM look like a convincing reversal signal?
+  The bounce must be 3+ clear bullish candles rising obviously from a specific low.
+  A retail trader looking at it should think "price is going up here."
+  The peak must be clearly visible before the decline begins.
+  NO → add more bounce candles, increase their size. Reshape the IDM.
+
+Q7: Does price VISIBLY enter and react from the OB zone?
+  A candle's wick or body must clearly overlap with the OB box on screen.
+  The viewer must see: price came back to exactly where the OB candle was.
+  NO → extend the retrace until price physically enters the zone.
+
+Q8: Is the BOS OBVIOUSLY a break — not barely crossing the line?
+  The BOS candle close must be at least 10 pips above the structural high.
+  A viewer must look at the chart and immediately see "price broke through."
+  NO → increase the BOS candle body until the break is unmistakable.
+
+Q9: Is the OB candle the most visually distinctive candle before the impulse?
+  It should be the largest bearish candle in the 5 candles preceding the impulse.
+  NO → increase OB candle body, reduce surrounding candle bodies.
+
+Q10: Does price clearly reach TP on the chart?
+  The last Phase G candle must visually reach or exceed the TP line.
+  NO → add an expansion candle.
+
+Q11: Are all labels at correct prices with no overlaps?
+  NO → fix the offending overlay coordinates.
 
 ---
 
@@ -542,7 +694,7 @@ FINAL CHECKLIST (candles and structures only — no overlay checks):
 - [ ] EQL: abs(touch1.l - touch2.l) <= 0.0003
 - [ ] OB geometry: EQL_level - OB_top >= 0.0010
 - [ ] FVG: candles[c+2].l > candles[c].h AND gap >= 0.0010
-- [ ] BOS: candles[bos].c > structural_high AND <= structural_high + 0.0015
+- [ ] BOS: candles[bos].c > structural_high + 0.0010 AND <= structural_high + 0.0020
 - [ ] IDM: price_level inside FVG, >= 15 pips above entry_zone_top
 - [ ] entry_price = zone midpoint
 - [ ] confirmed_at values are set AFTER the structure is complete (not before)

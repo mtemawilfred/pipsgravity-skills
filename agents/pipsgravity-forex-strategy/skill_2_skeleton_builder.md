@@ -595,7 +595,14 @@ Output ONLY this JSON. No explanation. No preamble. Raw JSON starting with {.
     "phaseF": {
       "shape": "<rhythm name>",
       "swings": ["<swing_type>", "<swing_type>", "..."],
-      "candle_count": <number>
+      "candle_count": <number>,
+      "idm_formation": {
+        "retrace_candles": <number of plain retrace candles before IDM starts>,
+        "low_candle": <index offset within Phase F where IDM low forms — e.g. 6>,
+        "bounce_candles": <number of convincing bullish bounce candles — minimum 3>,
+        "peak_candle_offset": <index offset within Phase F of bounce peak>,
+        "decline_candles": <number of bearish candles after peak — minimum 2>
+      }
     },
     "phaseG": {
       "shape": "<rhythm name>",
@@ -611,7 +618,9 @@ Output ONLY this JSON. No explanation. No preamble. Raw JSON starting with {.
     "liquidity_visible": true,
     "sweep_stands_out": true,
     "displacement_strongest": true,
-    "retracement_slower_than_impulse": true
+    "retracement_slower_than_impulse": true,
+    "idm_convincing": true,
+    "ob_zone_clearly_touched": true
   }
 }
 ```
@@ -620,6 +629,9 @@ RULES:
 - Omit phases not used by the setup (no phaseA0 for eql_sweep, no phaseG for TYPE_1)
 - candle_count for each phase comes from blueprint.phase_structure
 - swings array must be compatible with the candle_count (total swing candles = candle_count)
-- teaching_clarity_check must be verified before outputting — all four must be true
+- idm_formation is REQUIRED for all TYPE_2 setups — never omit it
+- idm_formation.bounce_candles minimum = 3 (must look like a convincing reversal)
+- idm_formation.decline_candles minimum = 2 (must clearly fail before the sweep)
+- teaching_clarity_check must be verified before outputting — all six must be true
 - Do NOT include: OHLC, prices, pip values, overlay coordinates, start_ms
 - Do NOT include: hook_text, youtube_title, youtube_description (those came from Call 1)
