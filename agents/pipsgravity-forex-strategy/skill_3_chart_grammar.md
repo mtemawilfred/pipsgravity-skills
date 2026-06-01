@@ -78,16 +78,19 @@ For each entry in `anchor_contracts`, resolve phase + role → absolute candle i
 After resolving all roles, you have an absolute anchor map. Example:
 
 ```
-swing_high_idx   = 3   (last A0 candle)
-eql_touch_1_idx  = 11  (30% through Phase B: 9 + floor(10×0.30) = 12)
-eql_touch_2_idx  = 17  (80% through Phase B: 9 + floor(10×0.80) = 17)
-sweep_idx        = 20  (last Phase C candle)
-ob_idx           = 20  (same as sweep — last Phase C candle)
-fvg_start_idx    = 21  (ob_idx + 1)
-bos_idx          = 25  (only Phase E candle)
-idm_low_idx      = 26 + idm_formation.low_candle
-idm_peak_idx     = 26 + idm_formation.peak_candle_offset
-launch_idx       = 36  (first Phase G candle)
+swing_high_idx   = highest_high_in_phase(skeleton.swing_high.phase)
+                   — scan every candle in the phase skeleton specifies,
+                   — return the index of the candle with the highest .h value.
+                   — NEVER default to Phase A0. NEVER default to candle 3.
+eql_touch_1_idx  = phase_starts[B] + floor(phase_count[B] × 0.30)
+eql_touch_2_idx  = phase_starts[B] + floor(phase_count[B] × 0.80)
+sweep_idx        = phase_starts[C] + phase_count[C] - 1
+ob_idx           = phase_starts[C] + phase_count[C] - 1
+fvg_start_idx    = ob_idx + 1
+bos_idx          = phase_starts[E]
+idm_low_idx      = phase_starts[F] + idm_formation.low_candle
+idm_peak_idx     = phase_starts[F] + idm_formation.peak_candle_offset
+launch_idx       = phase_starts[G]
 ```
 
 ### STEP 4 — GENERATE CANDLES TO SATISFY ANCHORS
@@ -99,7 +102,7 @@ its structural requirement:
 - `eql_touch_2_idx`: candles[idx].l = EQL_level ± 0.0001
 - `ob_idx`: candles[idx].c < candles[idx].o (bearish), body = 15-22 pips
 - `bos_idx`: candles[idx].c = structural_high + 0.0012 (12 pips above — clear BOS)
-- `idm_low_idx`: candles[idx].l = IDM_level (set IDM_level = fvg_bottom + fvg_height × 0.30)
+- `idm_low_idx`: candles[idx].l = IDM_level (set IDM_level = entry_zone_top + 0.0020 minimum)
 - `idm_peak_idx`: candles[idx].c = highest close in IDM bounce sequence
 
 ### STEP 5 — OUTPUT RESOLVED STRUCTURES
@@ -109,7 +112,7 @@ The structures object uses the resolved absolute indices — not the semantic ro
 
 ---
 
-
+## SECTION 1 — EDUCATIONAL CHART STANDARD
 
 Your purpose is NOT to create realistic market charts.
 Your purpose is to create EDUCATIONAL charts.
@@ -131,7 +134,7 @@ Every concept placed on the chart must satisfy its validity conditions from fore
 Before placing any overlay, verify:
   - The concept's own conditions are met (e.g. EQL within 3 pips, FVG >= 10 pips)
   - The connection conditions are met (e.g. FVG must originate from OB candle)
-  - The sequence is correct (e.g. Liquidity → Sweep → OB → FVG → BOS → IDM → Launch)
+  - The sequence is correct (e.g. Liquidity → Sweep → OB → FVG → BOS → Entry Liquidity → Launch)
 A concept that fails its validity conditions must not be labelled on the chart.
 
 ---
@@ -321,7 +324,8 @@ Candle 4 (small_impulse):  body 12-18 pips
 ```
 
 COHERENCE CHECK — before generating Phase D:
-  structural_high = candles[structural_high_candle_index].h
+  structural_high = candles[swing_high_idx].h
+  — swing_high_idx resolved from skeleton.swing_high.phase in SECTION 0 STEP 3
   Phase D + E must close above structural_high.
   Step 1: Set Phase D candle 1 open = OB_top + 0.0003
   Step 2: Required range = structural_high - OB_top + 0.0020
@@ -350,7 +354,13 @@ Body size: 12-20 pips.
 1 optional follow-through candle (8-12 pips) — then STOP.
 ```
 
-structural_high_candle_index = Phase A0 peak candle (never 0)
+STRUCTURAL HIGH RESOLUTION — CRITICAL:
+  structural_high_candle_index = highest_high_in_phase(skeleton.swing_high.phase)
+  Read swing_high.phase from skeleton. Scan every candle in that phase.
+  Return the index of the candle with the highest .h value in that phase.
+  NEVER default to Phase A0. NEVER default to candle 3.
+  The skeleton decides which phase. You scan it and find the actual highest candle.
+
 VERIFY: candles[bos_index].c > structural_high + 0.0010 (minimum 10 pips above)
 VERIFY: candles[bos_index].c <= structural_high + 0.0020 (maximum 20 pips above)
 
@@ -364,25 +374,56 @@ FVG: price_bottom = candles[C1].h, price_top = candles[C3].l, candle_start = C2
 
 ---
 
-### TEMPLATE: idm_fake_bounce
+### TEMPLATE: entry_liquidity
 
 THE CONCEPT:
-  Price retraces from BOS into the FVG zone. It bounces from inside the FVG —
-  looking like a valid entry to retail traders. They enter. Price reverses and
-  continues to the actual OB/entry zone. No sweep required. A plain reversal works.
+  Before launch, price must trap retail traders with a believable liquidity event.
+  This trap can take many forms — the type is defined by the skeleton's
+  entry_liquidity.type field. Your job is to draw whichever type the skeleton
+  specifies. The lesson is always identical:
 
-CRITICAL: READ IDM FORMATION FROM SKELETON FIRST.
-  The skeleton's phaseF.idm_formation tells you exactly:
-    - retrace_candles: how many plain retrace candles before IDM starts
-    - low_candle: the offset within Phase F where the IDM low forms
-    - bounce_candles: how many bullish bounce candles to generate (minimum 3)
-    - peak_candle_offset: which candle in Phase F is the bounce peak
-    - decline_candles: how many bearish candles after the peak (minimum 2)
+  Liquidity gets trapped → Sweep happens → Entry triggers → Expansion begins
 
-  Generate each part explicitly using these counts. Do NOT invent the IDM pattern.
-  The skeleton already decided how it looks. Your job is to draw it.
+READ THE SKELETON FIRST:
+  entry_liquidity.type determines which sub-template to use:
+    "idm"                 → fake bounce pattern (see IDM sub-template below)
+    "equal_lows"          → twin low touches near entry zone
+    "equal_highs"         → twin high touches near entry zone (bearish setups)
+    "trendline_liquidity" → diagonal line swept before launch
+    "range_liquidity"     → small consolidation range swept before launch
+    "internal_liquidity"  → pool of highs/lows inside the retracement swept before launch
 
-EDUCATIONAL IDM SHAPE (must look exactly like this):
+  If skeleton has no entry_liquidity field: default to "idm".
+
+PROXIMITY RULE (replaces must_be_inside_fvg_zone):
+  Entry liquidity must form within the lower 60-100% of the retracement path
+  back toward the entry zone. It does NOT need to be inside the FVG.
+  It does NOT need to be inside the OB.
+
+  proximity_check:
+    retrace_total_distance = displacement_high - entry_zone_top
+    liquidity_distance_from_entry = entry_liquidity_price - entry_zone_top
+    proximity_percent = (1 - (liquidity_distance_from_entry / retrace_total_distance)) × 100
+    REQUIRED: proximity_percent >= 60
+
+  A liquidity event 61% of the way back toward the entry zone is a believable trap.
+  A liquidity event 20% of the way back is not — price never really returned.
+
+SWEEP RULE:
+  entry_liquidity.must_be_swept = true → generate one sweep candle after the
+  liquidity level forms. The sweep candle takes out the level then closes back.
+  Sweep and launch relationship is flexible:
+    - Sweep candle can BE the first launch candle (massive wick that sweeps and
+      closes strongly — price never looks back)
+    - Sweep can happen 1-3 candles before launch begins
+    - No sweep at all is valid if entry_liquidity.must_be_swept = false
+  Hard rule: launch_candle >= sweep_candle. Launch never precedes sweep.
+
+---
+
+#### SUB-TEMPLATE: idm (fake bounce)
+
+EDUCATIONAL SHAPE:
 ```
             peak
              ▲
@@ -390,51 +431,124 @@ EDUCATIONAL IDM SHAPE (must look exactly like this):
           /     \
 IDM_low ●        \
                   \
-                   ▼ (decline back toward OB)
+                   ▼ (decline back toward entry zone)
 ```
-NOT this:
-```
-\/\/\/\/\/ (random noise — reject this)
-```
+
+READ FROM SKELETON:
+  phaseF.idm_formation.retrace_candles  → plain retrace candles before IDM
+  phaseF.idm_formation.low_candle       → offset of IDM low within Phase F
+  phaseF.idm_formation.bounce_candles   → bullish bounce candles (minimum 3)
+  phaseF.idm_formation.peak_candle_offset → which candle is the bounce peak
+  phaseF.idm_formation.decline_candles  → bearish candles after peak (minimum 2)
 
 POSITIONING:
-  ideal_idm_level = fvg_price_bottom + ((fvg_price_top - fvg_price_bottom) × 0.30)
-  REQUIRED: IDM_level >= entry_zone_top + 0.0015 (15+ pips above zone)
-  REQUIRED: fvg_bottom - 0.0010 <= IDM_level <= fvg_top
+  IDM_level = entry_zone_top + ((fvg_price_top - entry_zone_top) × 0.30)
+  REQUIRED: IDM_level >= entry_zone_top + 0.0015 (15+ pips above entry zone)
+  IDM does NOT need to be inside the FVG. It must satisfy the proximity rule above.
 
 GENERATION SEQUENCE:
-  Part 1 — Plain retrace (skeleton.retrace_candles):
-    Alternating drop/small_bounce candles (8-15 pips each).
-    Stop when price enters FVG zone.
+  Part 1 — Plain retrace (retrace_candles):
+    Alternating drop/small_bounce. Stop when proximity_percent >= 60.
 
   Part 2 — IDM low candle (1 candle):
-    One bearish candle. Sets the IDM_low price.
-    IDM_low = OB_top + 0.0020 at minimum (20 pips above OB zone).
+    One bearish candle setting IDM_low price.
+    IDM_low = entry_zone_top + 0.0020 minimum (20 pips above entry zone).
 
-  Part 3 — Convincing fake bounce (skeleton.bounce_candles — minimum 3):
-    MINIMUM 3 bullish candles. Each body 8-14 pips. Rising clearly.
+  Part 3 — Convincing fake bounce (bounce_candles — minimum 3):
+    Minimum 3 bullish candles. Each body 8-14 pips. Rising clearly.
     Total rise from IDM_low: 25-40 pips.
-    Each candle higher than the previous — looks like a real reversal starting.
-    No bounce candle close > last lower high in Phase F.
-    No bounce candle touches entry_zone_top.
+    Looks like a real reversal to a retail trader.
 
-  Part 4 — Peak candle: highest close of the bounce sequence.
+  Part 4 — Peak candle: highest close of bounce sequence.
 
-  Part 5 — Decline (skeleton.decline_candles — minimum 2):
-    2-3 bearish candles from peak, declining back toward OB zone.
-    Bodies 10-18 pips. Clearly bearish — the fake entry is clearly failing.
+  Part 5 — Decline (decline_candles — minimum 2):
+    2-3 bearish candles from peak. Bodies 10-18 pips. Clearly failing.
 
-  Part 6 — Price enters OB zone:
-    Final retrace candles bring price INTO the OB zone.
-    REQUIRED: at least one candle low touches or enters OB zone (candle.l <= OB_top).
-    This is the moment "PRICE RETURNS TO OB" is triggered.
+  Part 6 — Price enters entry zone:
+    Final retrace candles bring price INTO the entry zone.
+    REQUIRED: at least one candle low touches or enters zone (candle.l <= entry_zone_top).
 
-VERIFY:
-  1. IDM_level >= entry_zone_top + 0.0015
-  2. IDM_level inside FVG: fvg_bottom - 0.0010 <= IDM_level <= fvg_top
-  3. Fake bounce rises >= 25 pips from IDM_level (minimum 3 candles)
-  4. Decline clearly visible — minimum 2 bearish candles after peak
-  5. At least one Phase F candle after the decline has l <= OB_top (price enters zone)
+METADATA SYNC — CRITICAL:
+  Build the entry_liquidity structure object FROM the anchor map only.
+  Do NOT write phase_start, phase_end, confirmed_at from memory or approximation.
+
+  After generating all Phase F candles:
+    entry_liquidity.price_level        = candles[idm_low_idx].l
+    entry_liquidity.bounce_start_candle = idm_low_idx + 1
+    entry_liquidity.bounce_peak_candle  = idm_peak_idx  (from anchor map)
+    entry_liquidity.reversal_start_candle = idm_peak_idx + 1
+    entry_liquidity.phase_start        = phase_starts[F]
+    entry_liquidity.phase_end          = phase_starts[F] + phase_count[F] - 1
+    entry_liquidity.confirmed_at       = idm_peak_idx + decline_candles
+    entry_liquidity.sweep_candle       = idm_sweep_idx (if applicable)
+
+  VERIFY before writing:
+    phase_start <= bounce_start_candle <= bounce_peak_candle <= reversal_start_candle <= phase_end
+    confirmed_at >= reversal_start_candle
+    If any fails: anchor map is wrong. Do not output. Rebuild Phase F.
+
+---
+
+#### SUB-TEMPLATE: equal_lows (entry liquidity version)
+
+Two equal lows forming near the entry zone during the retracement.
+The second low gets swept before launch.
+
+POSITIONING:
+  EQL_entry_level = entry_zone_top + 0.0020 to 0.0040 (20-40 pips above zone)
+  Both touches within 0.0002 of each other (same 2-pip rule as macro EQL)
+  proximity_percent must be >= 60
+
+GENERATION SEQUENCE:
+  Drop toward level → touch 1 (l = EQL_entry_level) → bounce 10-15 pips
+  → drift back → touch 2 (l = EQL_entry_level ± 0.0001) → sweep candle
+  → launch begins (launch_candle >= sweep_candle)
+
+---
+
+#### SUB-TEMPLATE: equal_highs (entry liquidity version — bearish setups)
+
+Mirror of equal_lows. Two equal highs form near the entry zone during retracement.
+The second high gets swept before launch downward.
+
+EQH_entry_level = entry_zone_bottom - 0.0020 to 0.0040 (20-40 pips below zone)
+proximity_percent >= 60
+
+---
+
+#### SUB-TEMPLATE: trendline_liquidity
+
+A short diagonal trendline forms during the retracement. Price sweeps it before launch.
+
+GENERATION:
+  3 touches along a descending diagonal (for bullish setups).
+  Sweep candle breaks the trendline with a wick, closes back above it.
+  Then launch begins (launch_candle >= sweep_candle).
+
+---
+
+#### SUB-TEMPLATE: range_liquidity
+
+A small consolidation range (4-8 candles) forms near the entry zone.
+The range lows get swept before launch.
+
+GENERATION:
+  4-8 candles oscillating in a 10-15 pip range.
+  Range sits within proximity zone (>= 60% of retrace path).
+  One sweep candle takes out range lows, closes back inside range.
+  Launch begins on next candle or sweep candle itself (launch_candle >= sweep_candle).
+
+---
+
+#### SUB-TEMPLATE: internal_liquidity
+
+A cluster of recent swing lows/highs inside the retracement gets swept.
+No formal pattern — just a visible cluster of lows that price takes out.
+
+GENERATION:
+  2-4 candles with matching or near-matching lows (within 5 pips).
+  One sweep candle takes them all out, closes back above.
+  Launch begins (launch_candle >= sweep_candle).
 
 ---
 
@@ -442,15 +556,24 @@ VERIFY:
 
 Alternating: drop (8-15) → small_bounce (4-8) → drop (8-15) → small_bounce (4-8)
 
-For IDM setups:
-  Stop when price enters FVG zone — that is where the fake bounce begins.
-  After the IDM bounce and decline: price must continue to enter the OB zone.
-  REQUIRED: at least one candle's low <= OB_top (price physically enters the box).
-  A candle that stops 10 pips above the OB means price never returned — the lesson is lost.
+For entry_liquidity setups (ALL types):
+  The retracement has two stages:
 
-For non-IDM:
-  Last candle close must be <= OB_top + 0.0003 (at or inside the zone top).
-  NOT 10 pips above. AT the zone or inside it.
+  Stage 1 — Retrace to entry liquidity level:
+    Generate retrace candles until price reaches the entry_liquidity price level.
+    proximity_percent must be >= 60 before entry liquidity forms.
+    REQUIRED: at least one candle reaches entry_liquidity_price within 5 pips.
+
+  Stage 2 — After entry liquidity sweep, retrace to entry zone:
+    After the sweep candle, price must continue into the entry zone.
+    REQUIRED: at least one candle has l <= entry_zone_top (price physically enters the box).
+    A candle that stops 10+ pips above the entry zone means price never returned.
+    The lesson is lost. Extend the retrace.
+
+  DEPTH CHECK:
+    retrace_low = min(l of all Phase F candles)
+    REQUIRED: retrace_low <= entry_zone_top + 0.0005
+    If retrace_low > entry_zone_top + 0.0005: add more retrace candles. Do not stop early.
 
 Retrace candles must be VISIBLY smaller and more irregular than displacement candles.
 
@@ -487,7 +610,7 @@ The Label Engine handles:
   - What each label says ($$$ EQUAL LOWS, $$$ IDM, BOS CONFIRMED, etc.)
   - Teaching order (evidence before conclusion)
   - Anti-overlap (one label per candle per side)
-  - IDM price_level consistency (swept:false and swept:true match exactly)
+  - entry_liquidity price_level consistency (swept:false and swept:true match exactly)
 
 ---
 
@@ -534,17 +657,29 @@ FAIL: widen displacement candles.
 ### BOS CHECK (educational minimum 10 pips)
 candles[bos].c > structural_high + 0.0010 (minimum 10 pips)
 candles[bos].c <= structural_high + 0.0020 (maximum 20 pips)
+structural_high = candles[swing_high_idx].h
+  — swing_high_idx = highest_high_in_phase(skeleton.swing_high.phase)
+  — scan the phase the skeleton specifies. Never hardcode Phase A0 or candle 3.
 FAIL: adjust bos candle close upward. Fix Phase D first if it never reached structural_high.
 
-### IDM POSITION CHECK
-IDM_level >= entry_zone_top + 0.0015
-fvg_bottom - 0.0010 <= IDM_level <= fvg_top
-Fake bounce rise >= 0.0025 from IDM_level (minimum 25 pips — must look convincing).
-Minimum bounce candles: 3 (from skeleton.phaseF.idm_formation.bounce_candles).
-Minimum decline candles: 2 (from skeleton.phaseF.idm_formation.decline_candles).
-At least one post-IDM candle must have l <= OB_top (price enters the zone).
+### ENTRY LIQUIDITY POSITION CHECK
+entry_liquidity_price >= entry_zone_top + 0.0015 (15+ pips above entry zone)
+proximity_percent >= 60
+  proximity_percent = (1 - ((entry_liquidity_price - entry_zone_top) / (displacement_high - entry_zone_top))) × 100
+FAIL: if proximity < 60, extend the retrace before generating entry liquidity.
 
-### RETRACE CHECK (non-IDM)
+For IDM type specifically:
+  Fake bounce rise >= 0.0025 from IDM_level (minimum 25 pips — must look convincing)
+  Minimum bounce candles: 3 (from skeleton.phaseF.idm_formation.bounce_candles)
+  Minimum decline candles: 2 (from skeleton.phaseF.idm_formation.decline_candles)
+  At least one post-IDM candle must have l <= entry_zone_top (price enters zone)
+
+### RETRACE DEPTH CHECK
+retrace_low = min(l of all Phase F candles)
+REQUIRED: retrace_low <= entry_zone_top + 0.0005
+FAIL: add more Phase F candles until price physically reaches the entry zone.
+
+### RETRACE CHECK (non-entry-liquidity setups)
 last_F_candle.c <= zone_top + 0.0010
 
 ### TP CHECK
@@ -590,14 +725,17 @@ Q5: Is retracement visibly SLOWER and more IRREGULAR than displacement?
   Phase F must look like hesitation, not a clean directional move.
   NO → shrink Phase F candle bodies, add more mixed-direction candles.
 
-Q6: Does the IDM look like a convincing reversal signal?
-  The bounce must be 3+ clear bullish candles rising obviously from a specific low.
-  A retail trader looking at it should think "price is going up here."
-  The peak must be clearly visible before the decline begins.
-  NO → add more bounce candles, increase their size. Reshape the IDM.
+Q6: Does the entry liquidity look like a convincing trap?
+  The pattern must be clearly visible — whatever type was used.
+  For IDM: 3+ clear bullish candles rising obviously from a specific low, then declining.
+  For equal_lows: two obvious matching lows, then a sweep below them.
+  For trendline: a clear diagonal line touched multiple times, then broken.
+  For range/internal: a visible cluster, then one decisive candle taking it out.
+  A retail trader looking at it should think "price was going up / holding here."
+  NO → reshape the entry liquidity pattern. Add more candles. Make it more convincing.
 
-Q7: Does price VISIBLY enter and react from the OB zone?
-  A candle's wick or body must clearly overlap with the OB box on screen.
+Q7: Does price VISIBLY enter and react from the entry zone?
+  A candle's wick or body must clearly overlap with the entry zone box on screen.
   The viewer must see: price came back to exactly where the OB candle was.
   NO → extend the retrace until price physically enters the zone.
 
@@ -621,7 +759,7 @@ Q11: Are all labels at correct prices with no overlaps?
 
 ## OUTPUT FORMAT
 
-IMPORTANT CHANGE: Do NOT output an overlays array.
+IMPORTANT: Do NOT output an overlays array.
 Output a structures object instead. The Label Engine code node reads this and
 generates all overlays deterministically. This prevents labels from appearing
 before structures are confirmed.
@@ -653,6 +791,29 @@ Raw JSON starting with {. No explanation. No preamble. No markdown fences.
   },
   "structures": {
     <include only the structures that exist in this setup — see below>
+  },
+  "resolved_anchors": {
+    "swing_high_idx": <absolute index — from highest_high_in_phase(skeleton.swing_high.phase)>,
+    "eql_touch_1_idx": <absolute index>,
+    "eql_touch_2_idx": <absolute index>,
+    "sweep_idx": <absolute index>,
+    "ob_idx": <absolute index>,
+    "fvg_start_idx": <absolute index>,
+    "bos_idx": <absolute index>,
+    "entry_liquidity_idx": <absolute index — the low/high of the liquidity level>,
+    "entry_liquidity_sweep_idx": <absolute index — the sweep candle>,
+    "launch_idx": <absolute index>
+  },
+  "validation": {
+    "eql_valid": <true if abs(touch1.l - touch2.l) <= 0.0002>,
+    "sweep_valid": <true if sweep wick >= 5 pips through level and closes back>,
+    "ob_valid": <true if OB candle body correct direction and largest in surrounding 5>,
+    "fvg_valid": <true if candles[c+2].l > candles[c].h and gap >= 0.0010>,
+    "bos_valid": <true if bos close > structural_high + 0.0010>,
+    "retrace_valid": <true if retrace_low <= entry_zone_top + 0.0005>,
+    "entry_liquidity_valid": <true if proximity_percent >= 60>,
+    "launch_valid": <true if last Phase G candle >= tp_price>,
+    "phase_sequence_valid": <true if phase_start <= all indices <= phase_end for every structure>
   },
   "assets": { "sound_effects": [] },
   "transition_in": { "type": "fade", "duration_ms": 300 },
@@ -710,7 +871,7 @@ For fvg_standalone: candle_a/b/c are the three standalone FVG candles.
 ### bos (include for OB, demand/supply zone, and bos_standalone)
 ```json
 "bos": {
-  "structural_high_candle": <Phase A0 peak candle index — never 0>,
+  "structural_high_candle": <highest_high_in_phase(skeleton.swing_high.phase) — scan correct phase from skeleton>,
   "structural_high_price": <candles[structural_high_candle].h>,
   "bos_candle": <Phase E candle index>,
   "bos_close_price": <candles[bos_candle].c>,
@@ -718,18 +879,24 @@ For fvg_standalone: candle_a/b/c are the three standalone FVG candles.
 }
 ```
 
-### idm (include for TYPE_2 setups with IDM)
+### entry_liquidity (replaces hardcoded idm — include for all TYPE_2 setups)
 ```json
-"idm": {
-  "price_level": <price where fake bounce starts — inside FVG zone>,
-  "bounce_start_candle": <first bullish bounce candle index>,
-  "bounce_peak_candle": <highest candle of fake bounce>,
-  "reversal_start_candle": <first bearish candle after peak>,
-  "confirmed_at": <last Phase F candle — IDM confirmed when reversal complete>,
-  "phase_start": <bounce_start_candle>,
-  "phase_end": <last Phase F candle before launch>
+"entry_liquidity": {
+  "type": "<idm | equal_lows | equal_highs | trendline_liquidity | range_liquidity | internal_liquidity>",
+  "price_level": <price of the liquidity level — near entry zone, proximity >= 60%>,
+  "sweep_candle": <index of the sweep candle — takes out the liquidity level>,
+  "bounce_start_candle": <first candle of the trap pattern — IDM type only>,
+  "bounce_peak_candle": <highest point of trap bounce — IDM type only>,
+  "reversal_start_candle": <first candle declining after peak — IDM type only>,
+  "confirmed_at": <last candle confirming the trap is complete>,
+  "phase_start": <first Phase F candle index>,
+  "phase_end": <last Phase F candle index>,
+  "proximity_percent": <calculated value — must be >= 60>
 }
 ```
+Note: bounce_start_candle, bounce_peak_candle, reversal_start_candle populated for idm type only.
+For equal_lows/equal_highs: populate touch_1_candle and touch_2_candle instead.
+For range/trendline/internal: populate range_start_candle and range_end_candle instead.
 
 ### entry_zone (include for TYPE_2 setups)
 ```json
@@ -739,7 +906,7 @@ For fvg_standalone: candle_a/b/c are the three standalone FVG candles.
   "entry_price": <zone_bottom + ((zone_top - zone_bottom) × 0.5)>,
   "sl_price": <zone_bottom - 0.0010>,
   "tp_price": <max Phase D+E highs for bullish>,
-  "launch_candle": <first Phase G candle index>,
+  "launch_candle": <first Phase G candle index — launch_candle >= sweep_candle always>,
   "direction": "long | short"
 }
 ```
@@ -747,8 +914,8 @@ For fvg_standalone: candle_a/b/c are the three standalone FVG candles.
 ### price_returns (include for TYPE_2 setups — marks where retrace enters zone)
 ```json
 "price_returns": {
-  "candle_index": <first candle whose close enters within 15 pips of zone top>,
-  "price_level": <that candle's actual close price>
+  "candle_index": <first candle whose low is <= entry_zone_top>,
+  "price_level": <that candle's actual low price — must be at or inside the zone>
 }
 ```
 
@@ -781,9 +948,17 @@ FINAL CHECKLIST (candles and structures only — no overlay checks):
 - [ ] OB geometry: EQL_level - OB_top >= 0.0010
 - [ ] FVG: candles[c+2].l > candles[c].h AND gap >= 0.0010
 - [ ] BOS: candles[bos].c > structural_high + 0.0010 AND <= structural_high + 0.0020
-- [ ] IDM: price_level inside FVG, >= 15 pips above entry_zone_top
+- [ ] BOS structural_high sourced from highest_high_in_phase(skeleton.swing_high.phase)
+- [ ] entry_liquidity proximity_percent >= 60
+- [ ] entry_liquidity price_level >= entry_zone_top + 0.0015
+- [ ] retrace_low <= entry_zone_top + 0.0005 (price physically entered zone)
+- [ ] launch_candle >= sweep_candle (launch never before sweep)
 - [ ] entry_price = zone midpoint
-- [ ] confirmed_at values are set AFTER the structure is complete (not before)
-- [ ] All 10 visibility checks passed
+- [ ] confirmed_at values set AFTER structure is complete (not before)
+- [ ] resolved_anchors present with all indices populated
+- [ ] validation block present with all 9 checks
+- [ ] All validation flags = true before outputting
+- [ ] If any validation flag = false: identify which section failed, fix it, re-verify
+- [ ] All 11 visibility checks passed
 - [ ] All mathematical validation checks passed
 - [ ] NO overlays array in the output
