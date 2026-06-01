@@ -806,16 +806,67 @@ Raw JSON starting with {. No explanation. No preamble. No markdown fences.
   },
   "validation": {
     "eql_valid": <true if abs(touch1.l - touch2.l) <= 0.0002>,
+    "eql_difference_pips": <abs(touch1.l - touch2.l) / 0.0001 — e.g. 0 means perfectly flat>,
+
     "sweep_valid": <true if sweep wick >= 5 pips through level and closes back>,
+    "sweep_depth_pips": <(EQL_level - sweep_candle.l) / 0.0001 — how far wick pierced the level>,
+
     "ob_valid": <true if OB candle body correct direction and largest in surrounding 5>,
+    "ob_body_pips": <abs(ob_candle.c - ob_candle.o) / 0.0001>,
+    "ob_largest_surrounding_pips": <max body of candles[ob-4 to ob-1] / 0.0001>,
+
     "fvg_valid": <true if candles[c+2].l > candles[c].h and gap >= 0.0010>,
+    "fvg_size_pips": <(candles[c+2].l - candles[c].h) / 0.0001>,
+
     "bos_valid": <true if bos close > structural_high + 0.0010>,
+    "bos_break_pips": <(bos_candle.c - structural_high_price) / 0.0001>,
+
     "retrace_valid": <true if retrace_low <= entry_zone_top + 0.0005>,
+    "retrace_low_pips_above_zone": <(retrace_low - entry_zone_top) / 0.0001 — negative means inside zone>,
+
     "entry_liquidity_valid": <true if proximity_percent >= 60>,
+    "entry_liquidity_proximity_percent": <calculated proximity_percent value>,
+
     "launch_valid": <true if last Phase G candle >= tp_price>,
-    "phase_sequence_valid": <true if phase_start <= all indices <= phase_end for every structure>
+    "launch_pips_from_tp": <(last_G_candle.c - tp_price) / 0.0001 — negative means TP not reached>,
+
+    "phase_sequence_valid": <true if phase_start <= all indices <= phase_end for every structure>,
+
+    "failure_reasons": [
+      <only populate when a check is false — e.g. "eql_difference_pips = 4, exceeds 2-pip maximum">,
+      <e.g. "bos_break_pips = 2, minimum is 10">,
+      <e.g. "retrace never reached entry zone — retrace_low 78 pips above zone_top">,
+      <omit this field entirely if all checks pass>
+    ]
   },
-  "assets": { "sound_effects": [] },
+  "educational_audit": {
+    "primary_concept": "<the main concept this chart teaches — e.g. order_block, fvg, bos>",
+    "primary_concept_visible": <true if primary concept identifiable without labels in under 2 seconds>,
+
+    "displacement_is_largest_move": <true if Phase D bodies >= 3× average Phase A/B bodies>,
+    "displacement_pips": <total pip range of Phase D>,
+    "context_avg_body_pips": <average body size of Phase A + B candles>,
+    "displacement_multiplier": <displacement_pips / context_avg_body_pips — must be >= 3.0>,
+
+    "retrace_visibly_slower": <true if Phase F avg body < Phase D avg body by at least 50%>,
+    "retrace_avg_body_pips": <average body size of Phase F candles>,
+
+    "entry_liquidity_convincing": <true if the trap pattern would fool a retail trader>,
+
+    "ob_visibility_percent": <OB body size / total chart pip range × 100 — must be >= 1.0>,
+    "fvg_visibility_percent": <FVG gap size / total chart pip range × 100 — must be >= 1.0>,
+    "bos_visibility_percent": <BOS break pips / total chart pip range × 100 — must be >= 1.5>,
+
+    "all_concepts_visible_without_labels": <true if all structures pass the naked-eye test>
+  },
+  "concept_importance": [
+    "<primary concept first — e.g. order_block>",
+    "<second most important — e.g. displacement>",
+    "<third — e.g. retracement>",
+    "<fourth — e.g. liquidity>",
+    "<fifth — e.g. fvg>",
+    "<include only concepts present in this chart>"
+  ],
   "transition_in": { "type": "fade", "duration_ms": 300 },
   "transition_out": { "type": "fade", "duration_ms": 300 }
 }
@@ -883,6 +934,8 @@ For fvg_standalone: candle_a/b/c are the three standalone FVG candles.
 ```json
 "entry_liquidity": {
   "type": "<idm | equal_lows | equal_highs | trendline_liquidity | range_liquidity | internal_liquidity>",
+  "selection_reason": "<why this type was chosen — e.g. 'best_supporting_liquidity_for_primary_concept', 'skeleton_specified_idm', 'equal_lows_already_present_in_retrace', 'trendline_formed_naturally_during_phase_F'>",
+  "selected_from": ["<all types that were candidates given the skeleton — e.g. idm, equal_lows>"],
   "price_level": <price of the liquidity level — near entry zone, proximity >= 60%>,
   "sweep_candle": <index of the sweep candle — takes out the liquidity level>,
   "bounce_start_candle": <first candle of the trap pattern — IDM type only>,
@@ -956,9 +1009,24 @@ FINAL CHECKLIST (candles and structures only — no overlay checks):
 - [ ] entry_price = zone midpoint
 - [ ] confirmed_at values set AFTER structure is complete (not before)
 - [ ] resolved_anchors present with all indices populated
-- [ ] validation block present with all 9 checks
+- [ ] validation block present with all 9 checks + quantitative metrics
+- [ ] failure_reasons populated for every false flag (omit field if all pass)
 - [ ] All validation flags = true before outputting
 - [ ] If any validation flag = false: identify which section failed, fix it, re-verify
+- [ ] educational_audit block present with all visibility percentages calculated
+- [ ] displacement_multiplier >= 3.0
+- [ ] ob_visibility_percent >= 1.0
+- [ ] fvg_visibility_percent >= 1.0
+- [ ] bos_visibility_percent >= 1.5
+- [ ] all_concepts_visible_without_labels = true
+- [ ] concept_importance array present, ordered from most to least important
+- [ ] entry_liquidity has selection_reason and selected_from populated
 - [ ] All 11 visibility checks passed
 - [ ] All mathematical validation checks passed
 - [ ] NO overlays array in the output
+
+NOTE — FUTURE RENAME (post-Skill-3 cleanup):
+  entry_liquidity will eventually be renamed to supporting_liquidity.
+  Reason: not every setup has an entry. BOS, FVG, and breaker charts teach
+  concepts where liquidity supports the lesson without being an entry trigger.
+  Do not rename now. Flag it for the next architecture pass.
