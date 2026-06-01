@@ -38,8 +38,92 @@ Outputs: CHART_SCENE JSON (candles + overlays)
       ↓
 Parse & Validate (n8n)
       ↓
+[LABEL ENGINE — n8n Code node]
+Reads structural metadata, generates overlays deterministically
+Labels fire at confirmed_at values — never on prediction
+      ↓
+[Parse & Validate — n8n Code node]
+Mathematical checks (OHLC, EQL gap, BOS coherence, IDM position)
+      ↓
 Remotion Render → Final Video
 ```
+
+---
+
+## THE LABEL ENGINE — FIFTH COMPONENT
+
+The Label Engine is an n8n Code node between Call 4 and Parse & Validate.
+It is NOT a Claude call. It is deterministic JavaScript.
+
+### WHY IT EXISTS
+Claude generates candles and labels simultaneously. It knows the blueprint
+says "equal lows at candle 17" and labels at candle 9. This is prediction,
+not confirmation. The Label Engine fixes this by reading `confirmed_at` values
+from the structures object and firing labels AFTER the structure is complete.
+
+### LABEL LIFECYCLE RULES (enforced by code — not Claude)
+
+| Structure | Label fires at | Condition |
+|---|---|---|
+| Equal Lows / Highs | touch_2_candle (confirmed_at) | Both touches must exist |
+| FVG | candle_c (confirmed_at) | All 3 candles must close |
+| Order Block | confirmed_at (after displacement) | FVG + BOS must exist |
+| BOS | bos_candle (confirmed_at) | Body close must be confirmed |
+| IDM unswept | bounce_start_candle | When fake bounce begins |
+| IDM swept | confirmed_at (after reversal) | Reversal must be complete |
+| Trade Setup | launch_candle | After IDM confirmed |
+
+### LABEL NAMING STANDARD (in code — not in Claude prompts)
+
+| Concept | Label (unswept) | Label (swept) |
+|---|---|---|
+| Equal Lows | $$$ EQUAL LOWS | $$$ EQUAL LOWS SWEPT |
+| Equal Highs | $$$ EQUAL HIGHS | $$$ EQUAL HIGHS SWEPT |
+| Trendline LQ | $$$ TRENDLINE LQ | $$$ TRENDLINE LQ SWEPT |
+| Range LQ | $$$ RANGE LQ | $$$ RANGE SWEPT |
+| IDM | $$$ IDM | IDM SWEPT |
+| OB | ORDER BLOCK | — |
+| Demand Zone | VALID DEMAND ZONE | — |
+| Supply Zone | VALID SUPPLY ZONE | — |
+| FVG | FVG CREATED | — |
+| BOS | BOS CONFIRMED | — |
+
+### ADDING A NEW CONCEPT TO THE LABEL ENGINE
+
+When adding any new concept to the skills, add a section to the Label Engine
+code node following this template:
+
+```javascript
+// ── [CONCEPT NAME] ───────────────────────────────────────────────────────
+const newConcept = structures.new_concept_key;
+if (newConcept && [applicable setup type conditions]) {
+  overlays.push({
+    type:        '[overlay_type]',
+    // ... overlay fields ...
+    start_ms:    msAt(newConcept.confirmed_at)  // ALWAYS fires at confirmed_at
+  });
+}
+```
+
+Rules for every new concept:
+1. Use `confirmed_at` for `start_ms` — never the structure's first candle
+2. Use the label name from the naming standard table above
+3. Follow teaching order: evidence before conclusion
+4. IDM equivalent concepts: swept:false and swept:true must use identical price_level
+5. Anti-overlap: no two candle_labels on same candle, same side
+
+### WHAT CALL 4 MUST OUTPUT FOR EACH NEW CONCEPT
+
+Add a structures schema entry to Skill 3's output format section:
+```json
+"new_concept_key": {
+  "anchor_candle": <where the structure is located>,
+  "confirmed_at":  <the candle index when the structure becomes valid>,
+  "price_level":   <or price_top/price_bottom as needed>
+}
+```
+
+No labels. No start_ms. Only facts about where structures live.
 
 ---
 

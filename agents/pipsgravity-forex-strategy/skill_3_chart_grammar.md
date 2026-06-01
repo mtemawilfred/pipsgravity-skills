@@ -293,152 +293,24 @@ Add candles until TP reached.
 
 ---
 
-## SECTION 5 — OVERLAY GRAMMAR
+## SECTION 5 — OVERLAY GRAMMAR (MOVED TO LABEL ENGINE)
 
-Overlays placed AFTER all candles generated and verified.
-Evidence always before conclusion in teaching order.
+Overlay placement, label names, timing, and anti-overlap rules are now handled
+entirely by the Label Engine code node that runs AFTER this skill.
 
-### STEP ORDER
-1. Generate all candles
-2. Run Section 6 mathematical checks
-3. Place overlays in teaching order
-4. Validate all overlay coordinates against actual candle prices
+Your job in this skill is ONLY:
+  1. Generate clean candles
+  2. Output accurate structural metadata in the structures object
 
----
+Do NOT generate an overlays array. The Label Engine reads your structures
+object and generates all overlays deterministically from confirmed_at values.
 
-### OVERLAY TYPES — EXACT SCHEMAS
-
-```
-order_block:    { "type":"order_block", "candle_index":N, "price_top":P, "price_bottom":P, "direction":"bearish|bullish", "label":"ORDER BLOCK", "start_ms":0 }
-demand_zone:    { "type":"demand_zone", "price_top":P, "price_bottom":P, "candle_start":N, "label":"VALID DEMAND ZONE", "start_ms":0 }
-supply_zone:    { "type":"supply_zone", "price_top":P, "price_bottom":P, "candle_start":N, "label":"VALID SUPPLY ZONE", "start_ms":0 }
-fvg:            { "type":"fvg", "price_top":P, "price_bottom":P, "candle_start":N, "label":"FVG CREATED", "start_ms":0 }
-bos_label:      { "type":"bos_label", "candle_index":N, "candle_start":N, "price_level":P, "direction":"up|down", "label":"BOS CONFIRMED", "start_ms":0 }
-liquidity:      { "type":"liquidity", "price_level":P, "candle_start":N, "candle_end":N, "label":"$$$ EQUAL LOWS|$$$ EQUAL HIGHS|$$$ TRENDLINE LQ|$$$ RANGE LQ|$$$ IDM|IDM SWEPT", "swept":false, "start_ms":0 }
-candle_label:   { "type":"candle_label", "text":"MAX 5 WORDS ONE LINE", "candle_index":N, "price_level":P, "side":"right|left", "start_ms":0 }
-floating_label: { "type":"floating_label", "text":"TEXT", "candle_index":N, "price_level":P, "color":"#C9A84C", "start_ms":0 }
-trendline:      { "type":"trendline", "candle_start":N, "price_start":P, "candle_end":N, "price_end":P, "extend_to":N, "direction":"down|up", "label":"$$$ TRENDLINE LQ", "swept":false, "start_ms":0 }
-trade_setup:    { "type":"trade_setup", "entry_price":P, "sl_price":P, "tp_price":P, "candle_start":N, "direction":"long|short", "rr_ratio":"1:0", "start_ms":0 }
-```
-
-candle_label text: max 5 words, one line, no \n.
-
----
-
-### OVERLAY PLACEMENT RULES
-
-#### MACRO LIQUIDITY (EQL / EQH / Trendline / Range)
-  candle_start = first Phase B candle (start of the liquidity zone — for line span)
-  candle_end   = ob_index - 1 (stops one candle before OB box — no overlap)
-  price_level  = actual wick low of touch candles (verified equal value)
-  label        = "$$$ EQUAL LOWS" or "$$$ EQUAL HIGHS" or "$$$ TRENDLINE LQ" or "$$$ RANGE LQ"
-
-  TIMING NOTE: The label appears based on start_ms (calculated by P&V from candle_start).
-  P&V Step 10n will snap candle_start to the last touch candle for correct timing
-  while preserving the full line span via candle_end.
-  DO NOT set candle_start = last_touch — set it to Phase B start. P&V handles timing.
-
-  swept:false → during formation (label "$$$ EQUAL LOWS")
-  swept:true  → after sweep (label "$$$ EQUAL LOWS SWEPT") — same price_level as swept:false
-
-#### OB CANDLE LABEL
-  ONE candle_label per OB candle: text = "OB CANDLE"
-  candle_index = ob_index
-  price_level  = candles[ob_index].l - 0.0005 (just below the candle — no overlap with box)
-  side         = "left"
-  DO NOT add a separate "LIQUIDITY SWEEP" candle_label on the same candle.
-  The swept liquidity overlay already communicates the sweep.
-
-#### FVG
-  price_bottom = candles[ob_index].h (OB candle high — earliest valid gap)
-  price_top    = candles[ob_index+2].l
-  candle_start = ob_index + 1
-
-#### BOS
-  candle_start = structural_high_candle_index (left anchor — NEVER 0)
-  candle_index = bos_index
-  price_level  = candles[structural_high_candle_index].h
-
-#### FLOATING LABEL "PRICE RETURNS TO OB/ZONE"
-  candle_index = first candle whose close enters within 15 pips of zone top
-  price_level  = that candle's actual close
-
-#### IDM ENTRY LIQUIDITY
-  Two overlays required — both must use the SAME price_level:
-
-  swept:false overlay:
-    label        = "$$$ IDM"  (not "$$$ ENTRY LQ" — IDM is the specific concept)
-    price_level  = IDM_level (the price where fake bounce starts — inside FVG)
-    candle_start = first IDM fake bounce candle index
-    candle_end   = last Phase F candle index (before launch)
-
-  swept:true overlay:
-    label        = "IDM SWEPT"  (not "LQ SWEPT — ENTRY")
-    price_level  = SAME value as swept:false overlay (must match exactly)
-    candle_start = same as swept:false
-    candle_end   = first Phase G candle index
-
-  CRITICAL: swept:false and swept:true must have IDENTICAL price_level values.
-  They represent the same line changing state — not two different lines.
-
-#### EQL SWEPT (macro liquidity sweep overlay)
-  When the macro EQL is swept:
-    swept:false label = "$$$ EQUAL LOWS"
-    swept:true  label = "$$$ EQUAL LOWS SWEPT"  (not "LQ SWEPT — ENTRY")
-    Both at same price_level.
-
-#### TRADE SETUP (always LAST)
-  candle_start = first Phase G candle
-  entry_price  = zone_bottom + ((zone_top - zone_bottom) × 0.5) — MIDPOINT of zone
-  sl_price     = zone_bottom - 0.0010
-  tp_price     = max(Phase D + E highs) for bullish
-  direction    = "long" or "short"
-  rr_ratio     = "1:0"
-
-  ENTRY PRICE RULE (universal — all TYPE_2 setups):
-    entry_price = zone_bottom + (zone_height × 0.5) — midpoint, not the top edge
-    WRONG: entry at or near zone_top — that is the worst entry in the zone
-    RIGHT: entry at the 50% level — best risk-to-reward inside the zone
-
----
-
-### OVERLAY TEACHING ORDER
-
-**OB setups (bullish/bearish):**
-  liquidity(macro,swept:false) → fvg → bos_label → candle_label(OB CANDLE) → order_block → floating_label(PRICE RETURNS TO OB) → liquidity(IDM,swept:false) → liquidity(IDM,swept:true) → trade_setup
-
-**Demand/supply zone:**
-  liquidity(swept:false) → fvg(STEP 1: FVG ✓) → bos_label(STEP 2: BOS ✓) → floating_label(STEP 3: LIQUIDITY ✓) → demand_zone/supply_zone → floating_label(PRICE RETURNS TO ZONE) → liquidity(IDM,swept:false) → liquidity(IDM,swept:true) → trade_setup
-
-**EQL/EQH sweep (TYPE_1):**
-  liquidity(swept:false,"$$$ EQUAL LOWS") → liquidity(swept:true,"$$$ EQUAL LOWS SWEPT") → candle_label(WICK = GRAB NOT BOS) → floating_label(SELL-SIDE IN CONTROL)
-
-**Trendline (TYPE_1):**
-  trendline(swept:false) → candle_label(TOUCH 1) → candle_label(TOUCH 2) → candle_label(TOUCH 3) → trendline(swept:true) → floating_label(RETAIL STOPS TAKEN) → floating_label(MOMENTUM AFTER SWEEP)
-
-**FVG standalone:**
-  fvg(FVG — INSTITUTIONAL FOOTPRINT) → floating_label(PRICE LEFT A GAP) → floating_label(PRICE RETURNS TO FILL IT)
-
-**BOS standalone:**
-  bos_label(BOS CONFIRMED) → candle_label(BODY CLOSED ABOVE) → floating_label(STRUCTURE IS BROKEN)
-
-**Range liquidity:**
-  liquidity(support,swept:false,"$$$ RANGE LQ") → liquidity(resistance,swept:false,"$$$ RANGE LQ") → candle_label(SWEEP BELOW) → liquidity(support,swept:true,"$$$ RANGE SWEPT") → candle_label(SWEEP ABOVE) → liquidity(resistance,swept:true,"$$$ RANGE SWEPT") → floating_label(BOTH SIDES SWEPT) → floating_label(NOW PRICE HAS FUEL)
-
----
-
-### LABEL ANTI-OVERLAP RULES
-
-These rules prevent labels from overlapping on screen:
-
-1. ONE candle_label per candle per side. Never two labels on the same candle on the same side.
-2. OB candle: use only "OB CANDLE" label. No separate "LIQUIDITY SWEEP" label on the same candle.
-3. candle_label price_level must be at least 10 pips from any other label on the same candle.
-   If two labels must share a candle: one goes left, one goes right.
-4. floating_label price_level must not overlap the OB box or FVG box price range.
-5. IDM swept:false and swept:true labels must be at the SAME price_level — one line, two states.
-6. "$$$ EQUAL LOWS" and "$$$ EQUAL LOWS SWEPT" are different labels at the SAME price_level.
-   Do NOT create two separate lines at different prices.
+The Label Engine handles:
+  - When each label appears (fired at confirmed_at, not at structure start)
+  - What each label says ($$$ EQUAL LOWS, $$$ IDM, BOS CONFIRMED, etc.)
+  - Teaching order (evidence before conclusion)
+  - Anti-overlap (one label per candle per side)
+  - IDM price_level consistency (swept:false and swept:true match exactly)
 
 ---
 
@@ -511,6 +383,11 @@ Q10: Are all labels at their correct price levels with no overlaps?
 
 ## OUTPUT FORMAT
 
+IMPORTANT CHANGE: Do NOT output an overlays array.
+Output a structures object instead. The Label Engine code node reads this and
+generates all overlays deterministically. This prevents labels from appearing
+before structures are confirmed.
+
 Raw JSON starting with {. No explanation. No preamble. No markdown fences.
 
 ```json
@@ -518,8 +395,10 @@ Raw JSON starting with {. No explanation. No preamble. No markdown fences.
   "scene_id": 1,
   "render_type": "CHART_SCENE",
   "duration_ms": <candles.length × 500 + 4000>,
-  "phase_d_start": <first Phase D index — omit if no Phase D>,
-  "phase_e_end": <last Phase E index — omit if no Phase E>,
+  "phase_d_start": <first Phase D candle index — omit if no Phase D>,
+  "phase_e_end": <last Phase E candle index — omit if no Phase E>,
+  "setup_type": "<from blueprint>",
+  "video_type": "<TYPE_1 | TYPE_2 | TYPE_3>",
   "brand": {
     "primary": "#1B2A4A", "accent": "#C9A84C",
     "danger": "#991B1B", "success": "#166634",
@@ -534,28 +413,139 @@ Raw JSON starting with {. No explanation. No preamble. No markdown fences.
     "bullish_color": "#2563EB",
     "bearish_color": "#1B2A4A"
   },
-  "overlays": [ ... ],
+  "structures": {
+    <include only the structures that exist in this setup — see below>
+  },
   "assets": { "sound_effects": [] },
   "transition_in": { "type": "fade", "duration_ms": 300 },
   "transition_out": { "type": "fade", "duration_ms": 300 }
 }
 ```
 
-FINAL CHECKLIST:
+---
+
+## STRUCTURES OBJECT — SCHEMA PER CONCEPT
+
+Include only the structures that exist for the current setup_type.
+Every field is a fact about the candle data — no label names, no start_ms, no overlay types.
+
+### macro_liquidity (include for all setups with EQL/EQH/trendline/range)
+```json
+"macro_liquidity": {
+  "type": "eql | eqh | trendline | range",
+  "price_level": <actual wick low/high of touch candles>,
+  "touch_1_candle": <index of first touch candle>,
+  "touch_2_candle": <index of second touch candle>,
+  "touch_3_candle": <index of third touch candle — omit if only 2 touches>,
+  "confirmed_at": <index of last touch candle — label appears here>,
+  "phase_start": <first Phase B candle index — line draws from here>,
+  "phase_end": <last Phase B candle index — ob_index - 1 for OB setups>
+}
+```
+For trendline: also include `"slope_start_price"` and `"slope_end_price"`.
+For range: include `"resistance_level"` and `"support_level"` separately.
+
+### order_block (include for OB and demand/supply zone setups)
+```json
+"order_block": {
+  "anchor_candle": <ob_index — the actual OB candle>,
+  "price_top": <candles[ob_index].h>,
+  "price_bottom": <candles[ob_index].l>,
+  "direction": "bearish | bullish",
+  "confirmed_at": <last Phase D candle index — OB only valid after displacement>
+}
+```
+
+### fvg (include for OB, demand/supply zone, and fvg_standalone)
+```json
+"fvg": {
+  "candle_a": <ob_index — OB candle is left edge>,
+  "candle_b": <ob_index + 1 — first impulse>,
+  "candle_c": <ob_index + 2 — second impulse>,
+  "price_top": <candles[ob_index+2].l>,
+  "price_bottom": <candles[ob_index].h>,
+  "confirmed_at": <ob_index + 2 — FVG exists only after candle_c closes>
+}
+```
+For fvg_standalone: candle_a/b/c are the three standalone FVG candles.
+
+### bos (include for OB, demand/supply zone, and bos_standalone)
+```json
+"bos": {
+  "structural_high_candle": <Phase A0 peak candle index — never 0>,
+  "structural_high_price": <candles[structural_high_candle].h>,
+  "bos_candle": <Phase E candle index>,
+  "bos_close_price": <candles[bos_candle].c>,
+  "confirmed_at": <Phase E candle index — same as bos_candle>
+}
+```
+
+### idm (include for TYPE_2 setups with IDM)
+```json
+"idm": {
+  "price_level": <price where fake bounce starts — inside FVG zone>,
+  "bounce_start_candle": <first bullish bounce candle index>,
+  "bounce_peak_candle": <highest candle of fake bounce>,
+  "reversal_start_candle": <first bearish candle after peak>,
+  "confirmed_at": <last Phase F candle — IDM confirmed when reversal complete>,
+  "phase_start": <bounce_start_candle>,
+  "phase_end": <last Phase F candle before launch>
+}
+```
+
+### entry_zone (include for TYPE_2 setups)
+```json
+"entry_zone": {
+  "price_top": <zone top — OB_top or demand zone top>,
+  "price_bottom": <zone bottom>,
+  "entry_price": <zone_bottom + ((zone_top - zone_bottom) × 0.5)>,
+  "sl_price": <zone_bottom - 0.0010>,
+  "tp_price": <max Phase D+E highs for bullish>,
+  "launch_candle": <first Phase G candle index>,
+  "direction": "long | short"
+}
+```
+
+### price_returns (include for TYPE_2 setups — marks where retrace enters zone)
+```json
+"price_returns": {
+  "candle_index": <first candle whose close enters within 15 pips of zone top>,
+  "price_level": <that candle's actual close price>
+}
+```
+
+### sweep_candle (include for eql_sweep, eqh_sweep, trendline_liquidity)
+```json
+"sweep_candle": {
+  "candle_index": <the sweep candle index>,
+  "confirmed_at": <sweep candle index — confirmed when that single candle closes>
+}
+```
+
+### reversal (include for eql_sweep, eqh_sweep, trendline_liquidity after sweep)
+```json
+"reversal": {
+  "start_candle": <first post-sweep momentum candle>,
+  "confirmed_at": <after 2 momentum candles — reversal confirmed>
+}
+```
+
+---
+
+FINAL CHECKLIST (candles and structures only — no overlay checks):
 - [ ] candles.length = skeleton total_candles
 - [ ] visible_count = candles.length
 - [ ] duration_ms = (candles.length × 500) + 4000
 - [ ] phase_d_start and phase_e_end present (if applicable)
-- [ ] All start_ms = 0
-- [ ] rr_ratio = "1:0"
-- [ ] trade_setup is last overlay
-- [ ] Every candle OHLC valid
-- [ ] EQL label candle_start = Phase B start (P&V snaps timing to last touch)
-- [ ] IDM swept:false and swept:true have IDENTICAL price_level
-- [ ] EQL swept:false = "$$$ EQUAL LOWS", swept:true = "$$$ EQUAL LOWS SWEPT"
-- [ ] IDM swept:false = "$$$ IDM", swept:true = "IDM SWEPT"
-- [ ] No two candle_labels on same candle same side
-- [ ] FVG uses earliest valid gap from OB candle
-- [ ] Entry price = zone midpoint
+- [ ] setup_type and video_type present
+- [ ] Every candle OHLC valid (h >= max(o,c), l <= min(o,c))
+- [ ] EQL: abs(touch1.l - touch2.l) <= 0.0003
+- [ ] OB geometry: EQL_level - OB_top >= 0.0010
+- [ ] FVG: candles[c+2].l > candles[c].h AND gap >= 0.0010
+- [ ] BOS: candles[bos].c > structural_high AND <= structural_high + 0.0015
+- [ ] IDM: price_level inside FVG, >= 15 pips above entry_zone_top
+- [ ] entry_price = zone midpoint
+- [ ] confirmed_at values are set AFTER the structure is complete (not before)
 - [ ] All 10 visibility checks passed
-- [ ] All mathematical checks passed
+- [ ] All mathematical validation checks passed
+- [ ] NO overlays array in the output
