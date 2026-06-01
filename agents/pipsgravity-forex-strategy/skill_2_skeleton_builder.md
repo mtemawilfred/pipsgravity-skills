@@ -640,6 +640,19 @@ Output ONLY this JSON. No explanation. No preamble. Raw JSON starting with {.
     }
   },
 
+  "dependencies": {
+    "EQL":         [],
+    "SWEEP":       ["EQL"],
+    "ORDER_BLOCK": ["SWEEP"],
+    "DISPLACEMENT":["ORDER_BLOCK"],
+    "FVG":         ["DISPLACEMENT"],
+    "BOS":         ["DISPLACEMENT"],
+    "RETRACEMENT": ["BOS"],
+    "IDM":         ["RETRACEMENT"],
+    "IDM_SWEEP":   ["IDM"],
+    "LAUNCH":      ["IDM_SWEEP"]
+  },
+
   "visual_priority": [
     "liquidity",
     "sweep",
@@ -650,6 +663,24 @@ Output ONLY this JSON. No explanation. No preamble. Raw JSON starting with {.
     "idm",
     "entry"
   ],
+
+  "educational_focus": {
+    "primary_concept": "order_block",
+    "must_be_most_visible": [
+      "order_block",
+      "displacement",
+      "retracement_to_ob"
+    ],
+    "secondary_concepts": [
+      "liquidity",
+      "fvg",
+      "idm"
+    ],
+    "background_concepts": [
+      "trend_context",
+      "bos"
+    ]
+  },
 
   "market_skeleton": {
     "phaseA0": {
@@ -674,10 +705,10 @@ Output ONLY this JSON. No explanation. No preamble. Raw JSON starting with {.
       "candle_count": 10
     },
     "phaseC": {
-      "shape": "consolidation + sweep",
-      "objective": "show the stop hunt and mark the order block candle",
-      "success_condition": "OB candle is clearly bearish and sits 10+ pips below EQL level — sweep wick is dominant",
-      "swings": ["mixed_small", "single_spike"],
+      "shape": "ob_candle + sweep",
+      "objective": "show the stop hunt and mark the order block candle — two separate candles with two separate jobs",
+      "success_condition": "OB candle (offset 0) is clearly bearish with 15+ pip body sitting entirely below EQL — sweep candle (offset 1) wick pierces 8+ pips below EQL and body closes back above",
+      "swings": ["drop", "single_spike"],
       "candle_count": 2
     },
     "phaseD": {
@@ -702,7 +733,7 @@ Output ONLY this JSON. No explanation. No preamble. Raw JSON starting with {.
       "candle_count": 10,
       "idm_formation": {
         "retrace_candles": 4,
-        "low_candle": 5,
+        "low_candle": 4,
         "bounce_candles": 3,
         "peak_candle_offset": 8,
         "decline_candles": 2
@@ -720,55 +751,112 @@ Output ONLY this JSON. No explanation. No preamble. Raw JSON starting with {.
   "anchor_contracts": {
     "swing_high": {
       "phase": "A0",
-      "role": "final_peak"
+      "offset": 3,
+      "role": "final_peak",
+      "relationship": {
+        "note": "origin anchor — no dependencies"
+      }
     },
     "eql_touch_1": {
       "phase": "B",
+      "offset": 2,
       "role": "first_touch",
       "must_match_with": "eql_touch_2",
-      "max_price_difference_pips": 2
+      "max_price_difference_pips": 2,
+      "relationship": {
+        "must_precede": "eql_touch_2"
+      }
     },
     "eql_touch_2": {
       "phase": "B",
+      "offset": 8,
       "role": "second_touch",
       "must_match_with": "eql_touch_1",
-      "max_price_difference_pips": 2
+      "max_price_difference_pips": 2,
+      "relationship": {
+        "must_follow": "eql_touch_1",
+        "must_match_price_within_pips": 2
+      }
     },
     "sweep": {
       "phase": "C",
+      "offset": 1,
       "role": "liquidity_sweep",
-      "minimum_wick_depth_pips": 8
+      "minimum_wick_depth_pips": 8,
+      "relationship": {
+        "must_follow": "eql_touch_2",
+        "must_pierce_below": "EQL_price_level",
+        "must_close_above": "EQL_price_level"
+      }
     },
     "order_block": {
       "phase": "C",
-      "role": "last_bearish_before_displacement",
+      "offset": 0,
+      "role": "ob_candle_before_sweep",
       "must_be_below_eql_by_pips": 10,
-      "minimum_body_pips": 15
+      "minimum_body_pips": 15,
+      "relationship": {
+        "must_immediately_precede": "sweep",
+        "max_candles_before_displacement": 1,
+        "note": "OB is offset 0, sweep is offset 1 — they are always different candles"
+      }
     },
     "fvg": {
       "phase": "D",
+      "offset": 0,
       "role": "first_valid_gap",
-      "minimum_gap_pips": 10
+      "minimum_gap_pips": 10,
+      "relationship": {
+        "must_be_created_by": "displacement",
+        "candle_a_is": "order_block",
+        "candle_b_is": "first_displacement_candle",
+        "candle_c_is": "second_displacement_candle",
+        "gap_is_between": ["candle_a_high", "candle_c_low"]
+      }
     },
     "bos": {
       "phase": "E",
+      "offset": 0,
       "role": "structure_break",
       "minimum_break_pips": 5,
-      "maximum_break_pips": 15
+      "maximum_break_pips": 15,
+      "relationship": {
+        "must_break": "swing_high",
+        "references_price_from": "swing_high_anchor",
+        "requires_displacement_first": true
+      }
     },
     "idm_low": {
       "phase": "F",
+      "offset": 4,
       "role": "idm_low_candle",
-      "must_be_inside_fvg_zone": true
+      "must_be_inside_fvg_zone": true,
+      "relationship": {
+        "must_follow": "bos",
+        "must_be_inside": "fvg_zone",
+        "note": "offset must equal retrace_candles in idm_formation"
+      }
     },
     "idm_peak": {
       "phase": "F",
+      "offset": 8,
       "role": "idm_peak_candle",
-      "minimum_rise_from_idm_low_pips": 25
+      "minimum_rise_from_idm_low_pips": 25,
+      "relationship": {
+        "must_form_after": "idm_low",
+        "must_form_before": "idm_sweep",
+        "must_not_break_phase_F_structure": true
+      }
     },
     "idm_sweep": {
       "phase": "G",
-      "role": "first_launch_candle"
+      "offset": 0,
+      "role": "first_launch_candle",
+      "relationship": {
+        "must_pierce_below": "idm_low_price_level",
+        "must_close_above": "idm_low_price_level",
+        "triggers": "launch_sequence"
+      }
     }
   },
 
@@ -913,15 +1001,47 @@ Output ONLY this JSON. No explanation. No preamble. Raw JSON starting with {.
 ---
 
 ANCHOR CONTRACT RULES:
-- anchor_contracts use ONLY semantic roles — never candle numbers
-- Skill 2 never decides candle indices — that is Skill 3's job
+- Every anchor now has an explicit offset — Skill 3 computes absolute index as:
+  absolute_index = phase_starts[phase] + offset
+  No formula. No estimation. The offset is authoritative.
+- Skill 3 must read the offset directly — never derive position from role name alone
 - Include only anchors relevant to the setup_type
 - For TYPE_1 setups omit: order_block, bos, idm_low, idm_peak, idm_sweep
 - For eql_sweep: only include eql_touch_1, eql_touch_2, sweep
 - For fvg_standalone: only include fvg
 - For bos_standalone: only include swing_high, bos
-- All anchor_contracts with constraint metadata (must_match_with, minimum_pips etc.)
-  must be respected by Skill 3 — these are hard requirements, not suggestions
+- All constraint metadata (must_match_with, minimum_pips, relationship) are hard requirements — not suggestions
+- OB and sweep are ALWAYS different candles in Phase C: OB at offset 0, sweep at offset 1
+- This is the permanent fix for the OB/sweep geometry conflict — they can never be the same candle
+
+RELATIONSHIP CONTRACT RULES:
+- Every relationship field in anchor_contracts is a structural constraint Skill 3 must verify
+- must_precede / must_follow: sequence order is mandatory — if violated the setup is invalid
+- must_pierce_below / must_close_above: price conditions on the candle's wick and body
+- must_immediately_precede: the two candles must be adjacent with no candles between
+- must_be_inside: the anchor's price must fall within the named zone's price range
+- must_break: the BOS candle must close beyond the price of the named anchor
+- If any relationship condition fails — that structure is invalid — regenerate that phase
+
+DEPENDENCY TREE RULES:
+- The dependencies object defines the chain of evidence required for each concept
+- Skill 3 must verify the chain before placing any structure
+- If a dependency is missing: the dependent concept cannot be labelled
+  Example: FVG depends on DISPLACEMENT. If displacement failed its visual check, FVG is invalid.
+  Example: IDM depends on RETRACEMENT. If retrace never reached the OB zone, IDM is invalid.
+  Example: BOS depends on DISPLACEMENT. If Phase D did not produce 80+ pips, BOS is invalid.
+- The chain is: EQL → SWEEP → ORDER_BLOCK → DISPLACEMENT → FVG + BOS → RETRACEMENT → IDM → IDM_SWEEP → LAUNCH
+- A broken link anywhere invalidates everything after it — not just the next concept
+
+EDUCATIONAL FOCUS RULES:
+- primary_concept is the concept this video is teaching — it must be unmistakable
+- must_be_most_visible: these three concepts must dominate the chart visually
+  The OB zone, the displacement move, and the retracement back into the zone are the lesson
+- secondary_concepts: present and labelled but smaller in visual weight than primary group
+- background_concepts: present for context only — minimum visual weight
+  Trend context candles and BOS are scaffolding — the OB story is the feature
+- Skill 3 must use this hierarchy to size and shape every phase:
+  If displacement and trend_context candles look the same size — educational_focus is violated
 
 LABEL TRIGGER RULES:
 - Triggers reference anchor names, not phase names or candle numbers
@@ -935,6 +1055,10 @@ IDM FORMATION MATH — VERIFY BEFORE OUTPUTTING:
   total = retrace_candles + 1(low) + bounce_candles + decline_candles
   REQUIRED: total <= phaseF.candle_count
   If overflow: reduce retrace_candles first, then decline_candles (never go below 2)
+  CRITICAL: low_candle MUST equal retrace_candles — always
+  If retrace_candles=4, then low_candle=4. If retrace_candles=3, then low_candle=3.
+  The idm_low anchor offset MUST also equal retrace_candles.
+  All three values (retrace_candles, low_candle, idm_low.offset) must be identical.
 
 EDUCATIONAL STORY RULES:
 - educational_story must describe what the VIEWER should see — not what the concept is
