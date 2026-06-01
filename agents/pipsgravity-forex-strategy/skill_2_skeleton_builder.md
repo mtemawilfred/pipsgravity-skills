@@ -653,7 +653,7 @@ Output ONLY this JSON. No explanation. No preamble. Raw JSON starting with {.
     "LAUNCH":      ["IDM_SWEEP"]
   },
 
-  "visual_priority": [
+  "camera_focus_priority": [
     "liquidity",
     "sweep",
     "order_block",
@@ -680,6 +680,32 @@ Output ONLY this JSON. No explanation. No preamble. Raw JSON starting with {.
       "trend_context",
       "bos"
     ]
+  },
+
+  "strength_hierarchy": {
+    "strongest_move": "displacement",
+    "second_strongest_move": "launch",
+    "third_strongest_move": "idm_bounce",
+    "weakest_phase": "retracement",
+    "rule": "Each level must be visually smaller than the one above it. displacement > launch > idm_bounce > retracement. No exceptions. If launch looks as large as displacement, displacement is wrong. If retracement looks as fast as displacement, retracement is wrong."
+  },
+
+  "anchor_priority": {
+    "critical": [
+      "eql_touch_1",
+      "eql_touch_2",
+      "sweep",
+      "order_block",
+      "bos",
+      "idm_low"
+    ],
+    "secondary": [
+      "fvg",
+      "idm_peak",
+      "swing_high",
+      "idm_sweep"
+    ],
+    "rule": "If candle constraints force a trade-off, critical anchors must never be sacrificed. Secondary anchors may be approximated. Critical anchors must meet all their constraint metadata exactly."
   },
 
   "market_skeleton": {
@@ -751,31 +777,35 @@ Output ONLY this JSON. No explanation. No preamble. Raw JSON starting with {.
   "anchor_contracts": {
     "swing_high": {
       "phase": "A0",
-      "offset": 3,
+      "selection_rule": "highest_high_in_phase",
       "role": "final_peak",
       "relationship": {
-        "note": "origin anchor — no dependencies"
+        "note": "origin anchor — no dependencies. Use highest candle high in A0, not a fixed offset."
       }
     },
     "eql_touch_1": {
       "phase": "B",
-      "offset": 2,
+      "selection_rule": "first_low_at_eql_level",
+      "offset_hint": 2,
       "role": "first_touch",
       "must_match_with": "eql_touch_2",
       "max_price_difference_pips": 2,
       "relationship": {
-        "must_precede": "eql_touch_2"
+        "must_precede": "eql_touch_2",
+        "note": "offset_hint is guidance only — selection_rule takes precedence. Find the first candle in Phase B whose low matches the EQL price level."
       }
     },
     "eql_touch_2": {
       "phase": "B",
-      "offset": 8,
+      "selection_rule": "second_low_at_eql_level",
+      "offset_hint": 8,
       "role": "second_touch",
       "must_match_with": "eql_touch_1",
       "max_price_difference_pips": 2,
       "relationship": {
         "must_follow": "eql_touch_1",
-        "must_match_price_within_pips": 2
+        "must_match_price_within_pips": 2,
+        "note": "offset_hint is guidance only — selection_rule takes precedence. Find the second candle in Phase B whose low matches the EQL price level."
       }
     },
     "sweep": {
@@ -828,24 +858,27 @@ Output ONLY this JSON. No explanation. No preamble. Raw JSON starting with {.
     },
     "idm_low": {
       "phase": "F",
+      "selection_rule": "first_low_after_retrace_sequence",
       "offset": 4,
       "role": "idm_low_candle",
       "must_be_inside_fvg_zone": true,
       "relationship": {
         "must_follow": "bos",
         "must_be_inside": "fvg_zone",
-        "note": "offset must equal retrace_candles in idm_formation"
+        "note": "offset equals retrace_candles. selection_rule: the candle immediately after the retrace sequence ends — its low is the IDM price level."
       }
     },
     "idm_peak": {
       "phase": "F",
-      "offset": 8,
+      "selection_rule": "highest_close_in_idm_bounce",
+      "offset_hint": 8,
       "role": "idm_peak_candle",
       "minimum_rise_from_idm_low_pips": 25,
       "relationship": {
         "must_form_after": "idm_low",
         "must_form_before": "idm_sweep",
-        "must_not_break_phase_F_structure": true
+        "must_not_break_phase_F_structure": true,
+        "note": "offset_hint is guidance only — selection_rule takes precedence. Find the candle with the highest close in the bounce sequence."
       }
     },
     "idm_sweep": {
@@ -860,12 +893,47 @@ Output ONLY this JSON. No explanation. No preamble. Raw JSON starting with {.
     }
   },
 
-  "label_triggers": {
-    "EQL": "eql_touch_2",
-    "ORDER_BLOCK": "displacement_confirmed",
-    "FVG": "third_gap_candle_complete",
-    "BOS": "bos_close",
-    "IDM": "idm_peak_complete"
+  "label_lifecycle": {
+    "EQL": {
+      "appear": "eql_touch_2",
+      "persist_until": "sweep_confirmed",
+      "note": "replaced by EQL_SWEPT when sweep occurs — never both visible at same time"
+    },
+    "EQL_SWEPT": {
+      "appear": "sweep_confirmed",
+      "persist_until": "end_of_video",
+      "note": "takes over from EQL — stays visible for the rest of the chart"
+    },
+    "ORDER_BLOCK": {
+      "appear": "displacement_confirmed",
+      "persist_until": "end_of_video",
+      "note": "zone stays visible — it is the entry zone — never disappears"
+    },
+    "FVG": {
+      "appear": "third_gap_candle_complete",
+      "persist_until": "retrace_enters_zone",
+      "note": "disappears when price fills the gap — viewer sees it get reclaimed"
+    },
+    "BOS": {
+      "appear": "bos_close",
+      "persist_until": "end_of_video",
+      "note": "structural confirmation — stays on chart permanently"
+    },
+    "IDM": {
+      "appear": "idm_bounce_start",
+      "persist_until": "idm_sweep_confirmed",
+      "note": "unswept state — replaced by IDM_SWEPT when sweep candle confirms"
+    },
+    "IDM_SWEPT": {
+      "appear": "idm_sweep_confirmed",
+      "persist_until": "end_of_video",
+      "note": "takes over from IDM — entry signal confirmed — stays visible"
+    },
+    "TRADE_SETUP": {
+      "appear": "launch_candle",
+      "persist_until": "end_of_video",
+      "note": "entry, SL, TP lines appear together at launch and stay until TP is reached"
+    }
   },
 
   "events": [
@@ -1001,18 +1069,26 @@ Output ONLY this JSON. No explanation. No preamble. Raw JSON starting with {.
 ---
 
 ANCHOR CONTRACT RULES:
-- Every anchor now has an explicit offset — Skill 3 computes absolute index as:
-  absolute_index = phase_starts[phase] + offset
-  No formula. No estimation. The offset is authoritative.
-- Skill 3 must read the offset directly — never derive position from role name alone
+- Anchors with selection_rule: Skill 3 must find the candle that satisfies the rule
+  (e.g. highest_high_in_phase, first_low_at_eql_level) — not a fixed position
+- Anchors with offset: Skill 3 computes absolute_index = phase_starts[phase] + offset
+  Offset is authoritative for deterministic positions (sweep, OB, fvg, bos, idm_sweep)
+- offset_hint: guidance only — selection_rule always takes precedence when both present
 - Include only anchors relevant to the setup_type
 - For TYPE_1 setups omit: order_block, bos, idm_low, idm_peak, idm_sweep
 - For eql_sweep: only include eql_touch_1, eql_touch_2, sweep
 - For fvg_standalone: only include fvg
 - For bos_standalone: only include swing_high, bos
-- All constraint metadata (must_match_with, minimum_pips, relationship) are hard requirements — not suggestions
+- All constraint metadata (must_match_with, minimum_pips, relationship) are hard requirements
+
+SELECTION RULE DEFINITIONS:
+- highest_high_in_phase: scan all candles in the phase — return the one with the highest h value
+- first_low_at_eql_level: find the first candle in Phase B whose low equals the EQL price (within 2 pips)
+- second_low_at_eql_level: find the second candle in Phase B whose low matches the first touch (within 2 pips)
+- first_low_after_retrace_sequence: the candle at index retrace_candles within Phase F — its low is the IDM level
+- highest_close_in_idm_bounce: scan the bounce candles after idm_low — return the one with highest close
 - OB and sweep are ALWAYS different candles in Phase C: OB at offset 0, sweep at offset 1
-- This is the permanent fix for the OB/sweep geometry conflict — they can never be the same candle
+  This is the permanent fix for the OB/sweep geometry conflict — they can never be the same candle
 
 RELATIONSHIP CONTRACT RULES:
 - Every relationship field in anchor_contracts is a structural constraint Skill 3 must verify
@@ -1027,11 +1103,25 @@ DEPENDENCY TREE RULES:
 - The dependencies object defines the chain of evidence required for each concept
 - Skill 3 must verify the chain before placing any structure
 - If a dependency is missing: the dependent concept cannot be labelled
-  Example: FVG depends on DISPLACEMENT. If displacement failed its visual check, FVG is invalid.
+  Example: FVG depends on DISPLACEMENT. If displacement failed its 80-pip check, FVG is invalid.
   Example: IDM depends on RETRACEMENT. If retrace never reached the OB zone, IDM is invalid.
   Example: BOS depends on DISPLACEMENT. If Phase D did not produce 80+ pips, BOS is invalid.
 - The chain is: EQL → SWEEP → ORDER_BLOCK → DISPLACEMENT → FVG + BOS → RETRACEMENT → IDM → IDM_SWEEP → LAUNCH
 - A broken link anywhere invalidates everything after it — not just the next concept
+
+STRENGTH HIERARCHY RULES:
+- displacement is the strongest move — no other phase may match or exceed it visually
+- launch is second strongest — noticeably smaller than displacement, noticeably larger than IDM bounce
+- idm_bounce is third — convincing but contained — must look smaller than launch
+- retracement is weakest — irregular, slow, clearly smaller than everything above it
+- If any phase violates its rank, the candles for that phase must be regenerated
+- This is not aesthetic preference — it is the visual logic of the educational story
+
+ANCHOR PRIORITY RULES:
+- critical anchors must be satisfied exactly — no approximation allowed
+- secondary anchors may be approximated if candle constraints make exact placement impossible
+- If a critical anchor fails its constraint metadata: regenerate the entire phase, not just that candle
+- Skill 3 must resolve critical anchors before generating any candles in their phase
 
 EDUCATIONAL FOCUS RULES:
 - primary_concept is the concept this video is teaching — it must be unmistakable
@@ -1043,13 +1133,31 @@ EDUCATIONAL FOCUS RULES:
 - Skill 3 must use this hierarchy to size and shape every phase:
   If displacement and trend_context candles look the same size — educational_focus is violated
 
-LABEL TRIGGER RULES:
-- Triggers reference anchor names, not phase names or candle numbers
-- "displacement_confirmed" = after last Phase D candle
-- "third_gap_candle_complete" = after ob_index + 2 candle closes
-- "bos_close" = when BOS candle body closes beyond structural high
-- "idm_peak_complete" = after all bounce candles in IDM formation complete
-- Include only triggers for overlays that appear in this setup
+CAMERA FOCUS PRIORITY RULES:
+- Renamed from visual_priority — this represents the order in which a viewer's eye should move
+- Index 0 = first thing viewer notices. Index 7 = last thing viewer notices.
+- Skill 3 must ensure the camera_focus_priority order is achievable from the candle shapes alone
+- If labels were removed, a viewer should still process the chart in this exact order
+
+LABEL LIFECYCLE RULES:
+- label_lifecycle supersedes label_triggers — it defines both appearance and persistence
+- appear: the event after which the label becomes visible — must align with confirmed_at in Skill 3 structures
+- persist_until: the event after which the label disappears or is replaced
+- Labels marked persist_until: end_of_video must never disappear before the last candle
+- Labels with replacement pairs (EQL/EQL_SWEPT, IDM/IDM_SWEPT) must never appear simultaneously
+  When the swept version appears, the unswept version must disappear in the same frame
+- TRADE_SETUP appears at launch_candle only — entry, SL, and TP lines all appear together
+
+LABEL TRIGGER RULES (derived from label_lifecycle.appear values):
+- EQL label fires at: eql_touch_2
+- EQL_SWEPT fires at: sweep_confirmed
+- ORDER_BLOCK fires at: displacement_confirmed
+- FVG fires at: third_gap_candle_complete
+- BOS fires at: bos_close
+- IDM fires at: idm_bounce_start
+- IDM_SWEPT fires at: idm_sweep_confirmed
+- TRADE_SETUP fires at: launch_candle
+- Include only triggers for labels that appear in this setup
 
 IDM FORMATION MATH — VERIFY BEFORE OUTPUTTING:
   total = retrace_candles + 1(low) + bounce_candles + decline_candles
@@ -1066,13 +1174,6 @@ EDUCATIONAL STORY RULES:
 - Every concept in the setup must have a viewer_should_see entry
 - Omit concepts not present in this setup_type
 - The description must be visual — not definitional
-
-VISUAL PRIORITY RULES:
-- The array defines dominance order — index 0 must dominate over index 1
-- Displacement (index 3) must be the single largest move on the chart
-- Sweep (index 1) must visually dominate all Phase C candles
-- IDM (index 6) must be convincing but smaller than displacement
-- Skill 3 must respect this hierarchy when sizing candles
 
 EDUCATIONAL CONSTRAINTS RULES:
 - Every value is a hard minimum or maximum — not a guideline
