@@ -23,7 +23,93 @@ You only answer one question:
 
 ---
 
-## SECTION 1 — EDUCATIONAL CHART PHILOSOPHY
+## SECTION 0 — ANCHOR RESOLUTION
+
+THIS RUNS BEFORE ANY CANDLE IS GENERATED.
+
+Read the skeleton's `anchor_contracts` and `phase_structure`. Convert every semantic
+role into an absolute candle index. Store these as your working anchor map.
+Every candle you generate must satisfy these positions.
+
+### STEP 1 — BUILD PHASE START MAP
+
+Calculate where each phase starts in the absolute candle sequence.
+
+```
+phase_starts = {}
+running = 0
+for each phase in [A0, A, B, C, D, E, F, G]:
+    phase_starts[phase] = running
+    running += phase_structure[phase]
+```
+
+Example with standard OB counts (A0=4, A=5, B=10, C=2, D=4, E=1, F=10, G=5):
+```
+A0 starts at 0
+A  starts at 4
+B  starts at 9
+C  starts at 19
+D  starts at 21
+E  starts at 25
+F  starts at 26
+G  starts at 36
+```
+
+### STEP 2 — RESOLVE EACH ANCHOR ROLE
+
+For each entry in `anchor_contracts`, resolve phase + role → absolute candle index.
+
+| Role | Resolution formula |
+|---|---|
+| `final_peak` | phase_starts[phase] + phase_count[phase] - 1 (last candle of phase) |
+| `first_touch` | phase_starts[phase] + floor(phase_count[phase] × 0.30) |
+| `second_touch` | phase_starts[phase] + floor(phase_count[phase] × 0.80) |
+| `liquidity_sweep` | phase_starts[phase] + phase_count[phase] - 1 (last candle of phase) |
+| `last_bearish_before_displacement` | phase_starts[phase] + phase_count[phase] - 1 |
+| `first_valid_gap` | phase_starts[phase] + 0 (first impulse = ob_index + 1) |
+| `structure_break` | phase_starts[phase] (only candle in Phase E) |
+| `idm_low_candle` | phase_starts[phase] + idm_formation.low_candle |
+| `idm_peak_candle` | phase_starts[phase] + idm_formation.peak_candle_offset |
+| `first_launch_candle` | phase_starts[phase] (first candle of Phase G) |
+| `displacement_confirmed` | phase_starts[D] + phase_count[D] - 1 (last Phase D candle) |
+
+### STEP 3 — BUILD WORKING ANCHOR MAP
+
+After resolving all roles, you have an absolute anchor map. Example:
+
+```
+swing_high_idx   = 3   (last A0 candle)
+eql_touch_1_idx  = 11  (30% through Phase B: 9 + floor(10×0.30) = 12)
+eql_touch_2_idx  = 17  (80% through Phase B: 9 + floor(10×0.80) = 17)
+sweep_idx        = 20  (last Phase C candle)
+ob_idx           = 20  (same as sweep — last Phase C candle)
+fvg_start_idx    = 21  (ob_idx + 1)
+bos_idx          = 25  (only Phase E candle)
+idm_low_idx      = 26 + idm_formation.low_candle
+idm_peak_idx     = 26 + idm_formation.peak_candle_offset
+launch_idx       = 36  (first Phase G candle)
+```
+
+### STEP 4 — GENERATE CANDLES TO SATISFY ANCHORS
+
+Now generate candles phase by phase. At each anchor position, the candle MUST satisfy
+its structural requirement:
+
+- `eql_touch_1_idx`: candles[idx].l = EQL_level (set EQL_level before generating)
+- `eql_touch_2_idx`: candles[idx].l = EQL_level ± 0.0001
+- `ob_idx`: candles[idx].c < candles[idx].o (bearish), body = 15-22 pips
+- `bos_idx`: candles[idx].c = structural_high + 0.0012 (12 pips above — clear BOS)
+- `idm_low_idx`: candles[idx].l = IDM_level (set IDM_level = fvg_bottom + fvg_height × 0.30)
+- `idm_peak_idx`: candles[idx].c = highest close in IDM bounce sequence
+
+### STEP 5 — OUTPUT RESOLVED STRUCTURES
+
+After all candles are generated, populate the `structures` object using the anchor map.
+The structures object uses the resolved absolute indices — not the semantic roles.
+
+---
+
+
 
 Your purpose is NOT to create realistic market charts.
 Your purpose is to create EDUCATIONAL charts.

@@ -597,11 +597,11 @@ Output ONLY this JSON. No explanation. No preamble. Raw JSON starting with {.
       "swings": ["<swing_type>", "<swing_type>", "..."],
       "candle_count": <number>,
       "idm_formation": {
-        "retrace_candles": <number of plain retrace candles before IDM starts>,
-        "low_candle": <index offset within Phase F where IDM low forms — e.g. 6>,
-        "bounce_candles": <number of convincing bullish bounce candles — minimum 3>,
-        "peak_candle_offset": <index offset within Phase F of bounce peak>,
-        "decline_candles": <number of bearish candles after peak — minimum 2>
+        "retrace_candles": <number — plain retrace candles before IDM starts>,
+        "low_candle": <offset within Phase F where IDM low forms>,
+        "bounce_candles": <number — minimum 3>,
+        "peak_candle_offset": <offset within Phase F of bounce peak>,
+        "decline_candles": <number — minimum 2>
       }
     },
     "phaseG": {
@@ -609,6 +609,25 @@ Output ONLY this JSON. No explanation. No preamble. Raw JSON starting with {.
       "swings": ["<swing_type>", "<swing_type>", "..."],
       "candle_count": <number>
     }
+  },
+  "anchor_contracts": {
+    "swing_high":   { "phase": "A0", "role": "final_peak" },
+    "eql_touch_1":  { "phase": "B",  "role": "first_touch" },
+    "eql_touch_2":  { "phase": "B",  "role": "second_touch" },
+    "sweep":        { "phase": "C",  "role": "liquidity_sweep" },
+    "order_block":  { "phase": "C",  "role": "last_bearish_before_displacement" },
+    "fvg":          { "phase": "D",  "role": "first_valid_gap" },
+    "bos":          { "phase": "E",  "role": "structure_break" },
+    "idm_low":      { "phase": "F",  "role": "idm_low_candle" },
+    "idm_peak":     { "phase": "F",  "role": "idm_peak_candle" },
+    "idm_sweep":    { "phase": "G",  "role": "first_launch_candle" }
+  },
+  "label_triggers": {
+    "EQL":         "eql_touch_2",
+    "ORDER_BLOCK": "displacement_confirmed",
+    "FVG":         "third_gap_candle_complete",
+    "BOS":         "bos_close",
+    "IDM":         "idm_peak_complete"
   },
   "events": [
     { "event": "<story_beat>", "phase": "<phase_letter>" },
@@ -624,6 +643,28 @@ Output ONLY this JSON. No explanation. No preamble. Raw JSON starting with {.
   }
 }
 ```
+
+ANCHOR CONTRACT RULES:
+- anchor_contracts use ONLY semantic roles — never candle numbers
+- Skill 2 never decides candle indices — that is Skill 3's job
+- Include only anchors relevant to the setup_type
+- For TYPE_1 setups omit: order_block, bos, idm_low, idm_peak, idm_sweep
+- For eql_sweep: only include eql_touch_1, eql_touch_2, sweep
+- For fvg_standalone: only include fvg
+- For bos_standalone: only include swing_high, bos
+
+LABEL TRIGGER RULES:
+- Triggers reference anchor names, not phase names or candle numbers
+- "displacement_confirmed" = after last Phase D candle
+- "third_gap_candle_complete" = after ob_index + 2 candle closes
+- "bos_close" = when BOS candle body closes beyond structural high
+- "idm_peak_complete" = after all bounce candles in IDM formation complete
+- Include only triggers for overlays that appear in this setup
+
+IDM FORMATION MATH — VERIFY BEFORE OUTPUTTING:
+  total = retrace_candles + 1(low) + bounce_candles + decline_candles
+  REQUIRED: total <= phaseF.candle_count
+  If overflow: reduce retrace_candles first, then decline_candles (never go below 2)
 
 RULES:
 - Omit phases not used by the setup (no phaseA0 for eql_sweep, no phaseG for TYPE_1)
