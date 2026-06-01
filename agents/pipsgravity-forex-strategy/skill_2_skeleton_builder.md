@@ -776,11 +776,11 @@ Output ONLY this JSON. No explanation. No preamble. Raw JSON starting with {.
 
   "anchor_contracts": {
     "swing_high": {
-      "phase": "A0",
+      "phase": "A",
       "selection_rule": "highest_high_in_phase",
-      "role": "final_peak",
+      "role": "structural_high_bos_will_break",
       "relationship": {
-        "note": "origin anchor — no dependencies. Use highest candle high in A0, not a fixed offset."
+        "note": "Phase A creates the bearish structure. BOS in Phase E breaks this high. Use highest candle high in Phase A — this is the price level BOS must close above."
       }
     },
     "eql_touch_1": {
@@ -1074,6 +1074,15 @@ Output ONLY this JSON. No explanation. No preamble. Raw JSON starting with {.
     "skill2_outputs": "phase_relative",
     "skill3_outputs": "absolute",
     "protocol": "Skill 2 defines anchors as phase + selection_rule or phase + offset. Skill 3 resolves all anchors to absolute candle indices before generating any candles. Resolution: absolute_index = phase_starts[phase] + offset (offset anchors) or phase_starts[phase] + found_offset (selection_rule anchors). No downstream system — Label Engine, Parse & Validate, Remotion — ever reads phase-relative positions. Only absolute indices pass downstream."
+  },
+
+  "cross_field_contracts": {
+    "idm_low_offset_equals_retrace_candles": true,
+    "idm_peak_after_idm_low": true,
+    "bos_references_swing_high_anchor": true,
+    "fvg_created_by_displacement": true,
+    "phase_g_starts_after_idm_sweep": true,
+    "note": "These are explicit consistency contracts for Parse & Validate. Every field must be true before the chart is accepted. idm_low_offset_equals_retrace_candles: the offset of idm_low anchor must equal idm_formation.retrace_candles and idm_formation.low_candle — all three values identical. idm_peak_after_idm_low: idm_peak absolute index must be greater than idm_low absolute index. bos_references_swing_high_anchor: the BOS structure's structural_high_price must equal the price of the resolved swing_high anchor. fvg_created_by_displacement: fvg.candle_a must equal ob_index — the OB candle is the left edge of the FVG. phase_g_starts_after_idm_sweep: Phase G absolute start index must equal idm_sweep absolute index."
   }
 }
 ```
@@ -1151,6 +1160,20 @@ ANCHOR RESOLUTION RULES:
 - The resolution map must be built FIRST — then candles are generated to satisfy it
 - No downstream system ever receives phase-relative positions — only absolute indices
 - Label Engine, Parse & Validate, and Remotion all read absolute indices from the structures object
+
+CROSS FIELD CONTRACT RULES:
+- cross_field_contracts defines consistency checks that Parse & Validate must run on every chart
+- All five contracts must be true before a chart is accepted downstream
+- idm_low_offset_equals_retrace_candles: verify idm_low.offset == idm_formation.retrace_candles == idm_formation.low_candle
+  If any of the three values differ, the IDM formation is corrupt — reject and regenerate Phase F
+- idm_peak_after_idm_low: verify absolute_index(idm_peak) > absolute_index(idm_low)
+  If idm_peak resolves to the same or earlier candle than idm_low, the bounce never formed — regenerate
+- bos_references_swing_high_anchor: verify structures.bos.structural_high_price == price at resolved swing_high anchor
+  If BOS references a different price level than the swing_high anchor, the BOS is not breaking the right structure
+- fvg_created_by_displacement: verify structures.fvg.candle_a == ob_index
+  The OB candle must be the left edge of the FVG — if not, the FVG is not connected to the OB
+- phase_g_starts_after_idm_sweep: verify phase_starts[G] == absolute_index(idm_sweep)
+  Phase G must begin on the same candle as the IDM sweep — if not, the launch timing is wrong
 
 STRENGTH HIERARCHY RULES:
 - displacement is the strongest move — no other phase may match or exceed it visually
