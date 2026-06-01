@@ -786,26 +786,26 @@ Output ONLY this JSON. No explanation. No preamble. Raw JSON starting with {.
     "eql_touch_1": {
       "phase": "B",
       "selection_rule": "first_low_at_eql_level",
-      "offset_hint": 2,
+      "typical_offset": 2,
       "role": "first_touch",
       "must_match_with": "eql_touch_2",
       "max_price_difference_pips": 2,
       "relationship": {
         "must_precede": "eql_touch_2",
-        "note": "offset_hint is guidance only — selection_rule takes precedence. Find the first candle in Phase B whose low matches the EQL price level."
+        "note": "typical_offset is guidance only — selection_rule takes precedence. Find the first candle in Phase B whose low matches the EQL price level."
       }
     },
     "eql_touch_2": {
       "phase": "B",
       "selection_rule": "second_low_at_eql_level",
-      "offset_hint": 8,
+      "typical_offset": 8,
       "role": "second_touch",
       "must_match_with": "eql_touch_1",
       "max_price_difference_pips": 2,
       "relationship": {
         "must_follow": "eql_touch_1",
         "must_match_price_within_pips": 2,
-        "note": "offset_hint is guidance only — selection_rule takes precedence. Find the second candle in Phase B whose low matches the EQL price level."
+        "note": "typical_offset is guidance only — selection_rule takes precedence. Find the second candle in Phase B whose low matches the EQL price level."
       }
     },
     "sweep": {
@@ -871,14 +871,14 @@ Output ONLY this JSON. No explanation. No preamble. Raw JSON starting with {.
     "idm_peak": {
       "phase": "F",
       "selection_rule": "highest_close_in_idm_bounce",
-      "offset_hint": 8,
+      "typical_offset": 8,
       "role": "idm_peak_candle",
       "minimum_rise_from_idm_low_pips": 25,
       "relationship": {
         "must_form_after": "idm_low",
         "must_form_before": "idm_sweep",
         "must_not_break_phase_F_structure": true,
-        "note": "offset_hint is guidance only — selection_rule takes precedence. Find the candle with the highest close in the bounce sequence."
+        "note": "typical_offset is guidance only — selection_rule takes precedence. Find the candle with the highest close in the bounce sequence."
       }
     },
     "idm_sweep": {
@@ -957,9 +957,6 @@ Output ONLY this JSON. No explanation. No preamble. Raw JSON starting with {.
       "event": "equal_lows",
       "phase": "B",
       "visual_requirements": {
-        "two_touches_required": true,
-        "max_difference_between_lows_pips": 2,
-        "minimum_bounce_between_touches_pips": 20,
         "lows_look_flat_to_naked_eye": true
       }
     },
@@ -968,7 +965,6 @@ Output ONLY this JSON. No explanation. No preamble. Raw JSON starting with {.
       "phase": "C",
       "visual_requirements": {
         "wick_dominant_over_body": true,
-        "wick_pierces_below_eql_pips": 8,
         "body_closes_back_above_eql": true,
         "candle_stands_out_from_neighbours": true
       }
@@ -978,9 +974,7 @@ Output ONLY this JSON. No explanation. No preamble. Raw JSON starting with {.
       "phase": "C",
       "visual_requirements": {
         "candle_is_bearish": true,
-        "body_minimum_pips": 15,
-        "largest_bearish_body_in_preceding_5_candles": true,
-        "sits_below_eql_level_by_pips": 10
+        "largest_bearish_body_in_preceding_5_candles": true
       }
     },
     {
@@ -988,8 +982,6 @@ Output ONLY this JSON. No explanation. No preamble. Raw JSON starting with {.
       "phase": "D",
       "visual_requirements": {
         "largest_move_on_chart": true,
-        "minimum_total_pips": 80,
-        "fvg_gap_minimum_pips": 10,
         "decaying_body_sizes": true
       }
     },
@@ -997,8 +989,7 @@ Output ONLY this JSON. No explanation. No preamble. Raw JSON starting with {.
       "event": "fvg",
       "phase": "D",
       "visual_requirements": {
-        "gap_visible_as_empty_space": true,
-        "minimum_gap_pips": 10
+        "gap_visible_as_empty_space": true
       }
     },
     {
@@ -1006,8 +997,6 @@ Output ONLY this JSON. No explanation. No preamble. Raw JSON starting with {.
       "phase": "E",
       "visual_requirements": {
         "body_closes_beyond_structural_high": true,
-        "minimum_break_pips": 5,
-        "maximum_break_pips": 15,
         "not_a_wick_close": true
       }
     },
@@ -1017,7 +1006,6 @@ Output ONLY this JSON. No explanation. No preamble. Raw JSON starting with {.
       "visual_requirements": {
         "visually_slower_than_displacement": true,
         "mixed_direction": true,
-        "minimum_depth_percent_of_displacement": 60,
         "price_enters_ob_zone": true
       }
     },
@@ -1026,11 +1014,8 @@ Output ONLY this JSON. No explanation. No preamble. Raw JSON starting with {.
       "phase": "F",
       "visual_requirements": {
         "low_forms_clearly": true,
-        "bullish_bounce_candles": 3,
-        "minimum_bounce_pips": 25,
         "peak_visible_before_decline": true,
         "decline_before_sweep": true,
-        "minimum_decline_candles": 2,
         "low_inside_fvg_zone": true
       }
     },
@@ -1048,7 +1033,6 @@ Output ONLY this JSON. No explanation. No preamble. Raw JSON starting with {.
       "phase": "G",
       "visual_requirements": {
         "strong_expansion_from_ob_zone": true,
-        "minimum_reaction_from_zone_pips": 60,
         "last_candle_reaches_tp": true
       }
     }
@@ -1062,18 +1046,56 @@ Output ONLY this JSON. No explanation. No preamble. Raw JSON starting with {.
     "retrace_reaches_ob": true,
     "idm_forms_real_swing": true,
     "launch_exceeds_bos": true
+  },
+
+  "failure_policy": {
+    "critical_concepts_must_exist": [
+      "order_block",
+      "sweep",
+      "displacement",
+      "bos"
+    ],
+    "secondary_concepts_can_be_regenerated": [
+      "fvg",
+      "idm"
+    ],
+    "rule": "If Skill 3 cannot satisfy all structural constraints simultaneously, critical_concepts_must_exist must be satisfied first — no exceptions. Secondary concepts may be simplified or regenerated independently. If a critical concept fails after regeneration, the entire chart restarts from Phase A. Secondary concepts failing do not trigger a full restart — only the affected phase is regenerated."
+  },
+
+  "visual_scale_contract": {
+    "minimum_sweep_visibility_percent": 1.5,
+    "minimum_fvg_visibility_percent": 1.0,
+    "minimum_ob_height_visibility_percent": 1.0,
+    "calculation": "visibility_percent = (concept_pip_size / total_chart_pip_range) × 100",
+    "rule": "Skill 3 must calibrate total_chart_pip_range so every concept meets its minimum threshold. An 8-pip sweep on a 600-pip chart = 1.33% — passes. An 8-pip sweep on a 1000-pip chart = 0.8% — fails. Either expand the sweep depth or compress the chart range. Satisfying pip minimums alone is not enough — the concept must also be visible at chart scale."
+  },
+
+  "anchor_resolution": {
+    "skill2_outputs": "phase_relative",
+    "skill3_outputs": "absolute",
+    "protocol": "Skill 2 defines anchors as phase + selection_rule or phase + offset. Skill 3 resolves all anchors to absolute candle indices before generating any candles. Resolution: absolute_index = phase_starts[phase] + offset (offset anchors) or phase_starts[phase] + found_offset (selection_rule anchors). No downstream system — Label Engine, Parse & Validate, Remotion — ever reads phase-relative positions. Only absolute indices pass downstream."
   }
 }
 ```
 
 ---
 
+SINGLE SOURCE OF TRUTH — NUMERIC CONSTRAINTS:
+- All numeric pip thresholds live in exactly ONE place:
+  educational_constraints — pip minimums for displacement, sweep, FVG, IDM bounce, retrace, OB reaction
+  confirmation_rules — pass/fail thresholds per concept (EQL touches, FVG gap, BOS break, IDM candles)
+  anchor_contracts — concept-level constraints (OB body size, sweep wick depth, BOS break range)
+- events.visual_requirements contains ONLY boolean visual descriptors (true/false)
+- Never add numeric values to events.visual_requirements — put them in confirmation_rules or educational_constraints
+- If the same number appears in two places, one of them is wrong — remove the duplicate
+
 ANCHOR CONTRACT RULES:
 - Anchors with selection_rule: Skill 3 must find the candle that satisfies the rule
   (e.g. highest_high_in_phase, first_low_at_eql_level) — not a fixed position
 - Anchors with offset: Skill 3 computes absolute_index = phase_starts[phase] + offset
   Offset is authoritative for deterministic positions (sweep, OB, fvg, bos, idm_sweep)
-- offset_hint: guidance only — selection_rule always takes precedence when both present
+- typical_offset: guidance only — selection_rule always takes precedence when both present
+  typical_offset helps Skill 3 know roughly where to look — it is not a contract
 - Include only anchors relevant to the setup_type
 - For TYPE_1 setups omit: order_block, bos, idm_low, idm_peak, idm_sweep
 - For eql_sweep: only include eql_touch_1, eql_touch_2, sweep
@@ -1108,6 +1130,27 @@ DEPENDENCY TREE RULES:
   Example: BOS depends on DISPLACEMENT. If Phase D did not produce 80+ pips, BOS is invalid.
 - The chain is: EQL → SWEEP → ORDER_BLOCK → DISPLACEMENT → FVG + BOS → RETRACEMENT → IDM → IDM_SWEEP → LAUNCH
 - A broken link anywhere invalidates everything after it — not just the next concept
+
+FAILURE POLICY RULES:
+- critical_concepts_must_exist are non-negotiable — if any fails, regenerate that phase
+- If a critical concept still fails after phase regeneration, restart the full chart from Phase A
+- secondary_concepts_can_be_regenerated may fail and only trigger phase-level regeneration
+- Never sacrifice a critical concept to preserve a secondary one
+- Failure policy also governs label_lifecycle: if a concept never validly forms, its label must not appear
+
+VISUAL SCALE CONTRACT RULES:
+- Skill 3 must compute total_chart_pip_range before finalising candle prices
+- For every concept in visual_scale_contract: verify (concept_pip_size / total_range) × 100 >= threshold
+- If any concept falls below its threshold: either expand that concept's pip size or reduce total range
+- This check runs AFTER candle generation and BEFORE outputting — it is the final scale verification
+- A chart that passes all pip minimums but fails visibility_percent is still wrong
+
+ANCHOR RESOLUTION RULES:
+- Skill 2 outputs phase-relative positions only (phase name + selection_rule or offset)
+- Skill 3 resolves ALL anchors to absolute candle indices before generating any candles
+- The resolution map must be built FIRST — then candles are generated to satisfy it
+- No downstream system ever receives phase-relative positions — only absolute indices
+- Label Engine, Parse & Validate, and Remotion all read absolute indices from the structures object
 
 STRENGTH HIERARCHY RULES:
 - displacement is the strongest move — no other phase may match or exceed it visually
@@ -1179,14 +1222,14 @@ EDUCATIONAL CONSTRAINTS RULES:
 - Every value is a hard minimum or maximum — not a guideline
 - Skill 3 must verify every constraint is met before outputting
 - If any constraint fails — the candles for that phase must be regenerated
-- These constraints exist because the viewer must see the concept clearly
+- This is the ONLY source of pip threshold values — never duplicate in events.visual_requirements
 
 CONFIRMATION RULES:
 - These are the objective pass/fail criteria for each labelled concept
 - Skill 3 must verify every rule is met before placing any overlay or structure entry
 - If EQL max_difference_pips is exceeded — the EQL is not valid — regenerate Phase B
 - If BOS minimum_break_pips is not met — the BOS is not valid — adjust BOS candle
-- These rules are the standard between educational quality and random candles
+- This is the ONLY source of per-concept numeric thresholds — never duplicate in events.visual_requirements
 
 PHASE OBJECTIVE RULES:
 - objective tells Skill 3 WHY this phase exists in the story
