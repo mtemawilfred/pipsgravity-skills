@@ -855,6 +855,8 @@ entry_zone is inside order_block zone             (entry_zone.price_top <= ob.pr
 retrace_low <= entry_zone.price_top + 0.0005      (price physically touches zone)
 displacement is largest move on chart             (Phase D bodies >= 3x context bodies)
 launch_candle > price_returns.candle_index        (launch never same candle as zone touch)
+price_returns.candle_low <= entry_zone_top         (zone was physically entered)
+launch_valid requires retrace_valid = true         (no launch if price never returned)
 ```
 
 ### BEARISH OB INVARIANTS (mirror of above)
@@ -917,6 +919,25 @@ OHLC VIOLATIONS ARE NON-NEGOTIABLE:
 This loop is internal. The output always looks the same — a single JSON object.
 The loop just ensures what is output has been verified.
 
+### VALIDATION METRIC CALCULATION RULE — NON-NEGOTIABLE
+
+Every number in the validation block MUST be derived by reading the candles array directly.
+No estimated values. No template numbers. No approximations.
+
+Required calculation patterns:
+  ob_body_pips        = round(abs(candles[ob_idx].c - candles[ob_idx].o) / 0.0001, 1)
+  fvg_size_pips       = round((candles[ob_idx+2].l - candles[ob_idx].h) / 0.0001, 1)
+  bos_break_pips      = round((candles[bos_idx].c - structural_high_price) / 0.0001, 1)
+  retrace_low         = min(candles[i].l for i in range(phase_F_start, phase_F_end+1))
+  retrace_low_pips_above_zone = round((retrace_low - entry_zone_top) / 0.0001, 1)
+    positive = above zone (did NOT enter)
+    negative = below zone (DID enter — inside the box)
+  eql_difference_pips = round(abs(candles[touch1].l - candles[touch2].l) / 0.0001, 1)
+  sweep_depth_pips    = round((EQL_level - candles[sweep_idx].l) / 0.0001, 1)
+  idm_distance_pips   = round((entry_liquidity.price_level - entry_zone_top) / 0.0001, 1)
+
+If you cannot compute a metric from the candle array: write null, not an estimate.
+
 ### OHLC CHECK
 h >= max(o, c) AND l <= min(o, c) — every candle.
 
@@ -964,6 +985,9 @@ FAIL: regenerate OB candle with correct open/close. A bullish OB candle in a bul
 ### FVG CHECK (Pietrus-914 DetectBullishFVG formula)
 Bullish: candles[ob+2].l > candles[ob].h
 Bearish: candles[ob+2].h < candles[ob].l
+fvg_valid = gap >= 0.0005 AND gap <= 0.0012
+If gap > 0.0012: fvg_valid = FALSE. Do not mark it valid while also flagging it in failure_reasons.
+A structure cannot be simultaneously valid and over the maximum. Fix it, then mark valid.
 
 FVG SIZE TIERS — USE THESE THRESHOLDS:
   Too small (< 5 pips)  — FAIL: regenerate displacement. Gap is invisible to a beginner.
@@ -1014,9 +1038,16 @@ For IDM type specifically:
   At least one post-IDM candle must have l <= entry_zone_top (price enters zone)
 
 ### RETRACE DEPTH CHECK
-retrace_low = min(l of all Phase F candles)
-REQUIRED: retrace_low <= entry_zone_top + 0.0005
-FAIL: add more Phase F candles until price physically reaches the entry zone.
+retrace_low = min(candles[i].l for i in range(phase_F_start, phase_F_end+1))
+REQUIRED: retrace_low <= entry_zone_top
+retrace_valid = (retrace_low <= entry_zone_top)
+retrace_low_pips_above_zone = round((retrace_low - entry_zone_top) / 0.0001, 1)
+  Negative value = price entered zone (correct)
+  Positive value = price stopped above zone (FAIL)
+
+If retrace_low > entry_zone_top: add more Phase F candles. Price must physically enter the box.
+"Getting close" is not enough. The wick of at least one Phase F candle must be <= entry_zone_top.
+FAIL: retrace_valid = false. Do not output until fixed.
 
 ### RETRACE BODY SIZE CHECK
 retrace_avg_body_pips = sum(abs(c-o) for Phase F candles) / Phase F candle count
@@ -1036,6 +1067,17 @@ price_returns.candle_index != launch_candle (zone tap and launch are never the s
 launch_candle >= price_returns.candle_index + 2 (minimum 2 candles between touch and launch)
 FAIL: insert hesitation candles between price_returns and launch_candle.
 The sequence must be: zone tap → hesitation (1-2 small candles) → launch.
+
+### LAUNCH VALIDITY DEPENDENCY CHAIN
+launch_valid requires ALL of the following to be true first:
+  1. retrace_valid = true (price physically entered zone)
+  2. price_returns candle low <= entry_zone_top (zone was physically touched)
+  3. launch candle opens at or inside entry zone (candles[launch_candle].o <= entry_zone_top + 0.0005)
+  4. last Phase G candle close >= tp_price
+
+If retrace_valid = false: launch_valid = false. No exceptions.
+If price never touched the zone: the entry never happened. The setup is incomplete.
+launch_valid cannot be true when the entry condition was never satisfied.
 
 ### ENTRY PRICE CHECK
 entry_price = zone_bottom + ((zone_top - zone_bottom) × 0.5)
@@ -1180,7 +1222,10 @@ Raw JSON starting with {. No explanation. No preamble. No markdown fences.
     "entry_liquidity_valid": <true if proximity_percent >= 60>,
     "entry_liquidity_proximity_percent": <calculated proximity_percent value>,
 
-    "launch_valid": <true if last Phase G candle >= tp_price>,
+    "launch_valid": <true ONLY if retrace_valid=true AND price_returns.low <= entry_zone_top AND last Phase G candle >= tp_price>,
+
+    "entry_valid": <true if price_returns candle low <= entry_zone_top — price actually entered the zone>,
+    "entry_pips_inside_zone": <round((entry_zone_top - price_returns_low) / 0.0001, 1) — positive means inside zone, negative means above zone>,
     "launch_pips_from_tp": <(last_G_candle.c - tp_price) / 0.0001 — negative means TP not reached>,
 
     "phase_sequence_valid": <true if phase_start <= all indices <= phase_end for every structure>,
@@ -1423,7 +1468,9 @@ FINAL CHECKLIST — RUN IN ORDER (candles, structures, compliance):
 - [ ] entry_liquidity proximity_percent >= 60
 - [ ] entry_liquidity price_level >= entry_zone_top + 0.0008 (minimum 8 pips above zone)
 - [ ] entry_liquidity price_level <= entry_zone_top + 0.0015 (maximum 15 pips above zone)
-- [ ] retrace_low <= entry_zone_top + 0.0005 (price physically entered zone)
+- [ ] retrace_valid: retrace_low <= entry_zone_top (price wick entered zone — calculated from candle array)
+- [ ] entry_valid: price_returns candle low <= entry_zone_top (zone physically touched)
+- [ ] launch_valid = false if retrace_valid = false (dependency chain enforced)
 - [ ] retrace_avg_body_pips <= context_avg_body_pips × 0.70
 - [ ] launch_candle >= sweep_candle
 - [ ] price_returns.candle_index != launch_candle (tap and launch are separate)
