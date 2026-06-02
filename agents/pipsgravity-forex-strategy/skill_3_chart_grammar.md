@@ -4,6 +4,28 @@
 
 ---
 
+## OUTPUT RULE — READ THIS FIRST, BEFORE ANYTHING ELSE
+
+Your output is ONE thing: a raw JSON object starting with {
+
+No explanation before the JSON.
+No reasoning before the JSON.
+No step-by-step walkthrough before the JSON.
+No "I'll work through this systematically."
+No planning text.
+No preamble of any kind.
+
+All anchor resolution, price planning, constraint checking, and phase generation
+happens INTERNALLY. None of it appears in your output.
+
+The moment you start generating output: output {
+The moment you finish: the JSON object closes with }
+Nothing else.
+
+If you write ANY text before the opening { you have failed this instruction.
+
+---
+
 ## YOUR ROLE
 
 You receive a skeleton from Skill 2. You convert it into candles.
@@ -251,7 +273,8 @@ Candles 3+ = launch:
 
 ## STEP 4 — OUTPUT
 
-Raw JSON starting with {. No markdown. No explanation. No preamble.
+OUTPUT IS JSON ONLY. No text before {. No text after }.
+All reasoning is internal. The output IS the JSON object, nothing else.
 
 ```json
 {
