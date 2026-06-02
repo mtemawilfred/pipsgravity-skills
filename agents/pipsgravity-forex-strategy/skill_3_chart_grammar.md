@@ -90,40 +90,62 @@ All downstream work uses absolute indices only.
 
 ### BUILD PHASE START MAP
 
+Compute this ONCE. Store every value. Never recompute or approximate later.
+
 ```
+phase_structure = read from skeleton.blueprint.phase_structure
 phase_starts = {}
 running = 0
 for each phase in [A0, A, B, C, D, E, F, G]:
     phase_starts[phase] = running
     running += phase_structure[phase]
+total_candles = running
 ```
 
-Example result for {A0:4, A:5, B:10, C:2, D:4, E:1, F:10, G:5}:
+For skeleton with {A0:4, A:5, B:10, C:2, D:4, E:1, F:10, G:5}:
 ```
-A0=0, A=4, B=9, C=19, D=21, E=25, F=26, G=36
-total candles = 41
+A0 starts at 0,  ends at 3   (candles 0-3)
+A  starts at 4,  ends at 8   (candles 4-8)
+B  starts at 9,  ends at 18  (candles 9-18)
+C  starts at 19, ends at 20  (candles 19-20)
+D  starts at 21, ends at 24  (candles 21-24)
+E  starts at 25, ends at 25  (candle 25)
+F  starts at 26, ends at 35  (candles 26-35)
+G  starts at 36, ends at 40  (candles 36-40)
+total = 41 candles
 ```
 
-### RESOLVE EACH ANCHOR
+CRITICAL: Phase B contains EXACTLY phase_structure[B] candles (e.g. 10).
+The last Phase B candle is phase_starts[B] + phase_structure[B] - 1.
+The first Phase C candle is phase_starts[C]. These are DIFFERENT candles.
+The EQL touches happen INSIDE Phase B. They cannot be in Phase C.
+If eql_touch_2 lands on or after phase_starts[C], you miscounted — fix it.
 
-| Anchor | Resolution formula |
-|---|---|
-| swing_high | scan Phase A candles, return index of highest .h value |
-| eql_touch_1 | phase_starts[B] + anchor_contracts.eql_touch_1.typical_offset |
-| eql_touch_2 | phase_starts[B] + anchor_contracts.eql_touch_2.typical_offset |
-| order_block | phase_starts[C] + 0 (always offset 0 in Phase C) |
-| sweep | phase_starts[C] + 1 (always offset 1 in Phase C) |
-| fvg_candle_a | ob_idx (OB candle is left edge of FVG) |
-| fvg_candle_b | ob_idx + 1 |
-| fvg_candle_c | ob_idx + 2 |
-| bos | phase_starts[E] (only candle in Phase E) |
-| idm_low | phase_starts[F] + idm_formation.low_candle |
-| idm_peak | phase_starts[F] + idm_formation.peak_candle_offset |
-| idm_sweep | phase_starts[G] (first candle of Phase G) |
-| launch | phase_starts[G] + 1 (candle after sweep) |
+### RESOLVE EACH ANCHOR — COMPUTED VALUES, NOT GUESSES
 
-Store all resolved indices. These are your working anchor map. Reference this map for
-every structural constraint check — never re-derive from scratch.
+Compute each value explicitly from phase_starts. Write the number down. Use it everywhere.
+
+| Anchor | Formula | Example result |
+|---|---|---|
+| swing_high_idx | scan candles[phase_starts[A] to phase_starts[A]+phase_structure[A]-1], return index of highest .h | e.g. 4 |
+| eql_touch_1_idx | phase_starts[B] + anchor_contracts.eql_touch_1.typical_offset | e.g. 9+2=11 |
+| eql_touch_2_idx | phase_starts[B] + anchor_contracts.eql_touch_2.typical_offset | e.g. 9+8=17 |
+| ob_idx | phase_starts[C] + 0 | e.g. 19 |
+| sweep_idx | phase_starts[C] + 1 | e.g. 20 |
+| fvg_candle_a_idx | ob_idx | e.g. 19 |
+| fvg_candle_b_idx | ob_idx + 1 = phase_starts[D] | e.g. 21 |
+| fvg_candle_c_idx | ob_idx + 2 = phase_starts[D] + 1 | e.g. 22 |
+| bos_idx | phase_starts[E] | e.g. 25 |
+| idm_low_idx | phase_starts[F] + idm_formation.low_candle | e.g. 26+4=30 |
+| idm_peak_idx | phase_starts[F] + idm_formation.peak_candle_offset | e.g. 26+8=34 |
+| idm_sweep_idx | phase_starts[G] | e.g. 36 |
+| launch_idx | phase_starts[G] + 3 | e.g. 39 |
+
+VERIFY before generating any candle:
+  eql_touch_1_idx < eql_touch_2_idx < ob_idx  (EQL touches must be in Phase B, before Phase C)
+  ob_idx = phase_starts[C]                     (OB is always first candle of Phase C)
+  fvg_candle_b_idx = phase_starts[D]           (candle_b is always first candle of Phase D)
+  If any of these is false: recompute phase_starts. Do not proceed until they pass.
 
 ---
 
@@ -224,36 +246,52 @@ Candle 1 = Sweep (sweep_idx):
 
 This is the LARGEST move on the chart. Every candle bullish for bullish setup.
 
-STRUCTURE FIRST. Build the required prices before generating any candle.
+COMPUTE ALL STRUCTURAL PRICES BEFORE WRITING ANY CANDLE.
+These are not targets or guidelines — they are computed values that constrain the candles.
 
-STEP 1 — Set the FVG gap price:
-  fvg_gap_pips = minimum_fvg_size_pips (read from Skill 2, e.g. 10)
-  FVG_BOTTOM = OB_TOP  (= candles[ob_idx].h)
-  FVG_TOP = FVG_BOTTOM + (fvg_gap_pips × 0.0001)
-  This means: candles[ob_idx+2].l MUST equal FVG_TOP or higher.
-  Set this price now. Do not derive it later.
+COMPUTE 1 — FVG boundary (do this first, before anything else):
+  OB_TOP = candles[ob_idx].h  (already generated in Phase C)
+  fvg_gap_pips = minimum_fvg_size_pips from Skill 2 (e.g. 10)
+  FVG_LOCKED_LOW = OB_TOP + (fvg_gap_pips × 0.0001)
 
-STEP 2 — Set the BOS target price:
+  candles[fvg_candle_c_idx].l IS LOCKED AT FVG_LOCKED_LOW.
+  This is an assignment, not a constraint to check later.
+  candles[ob_idx+2].l = FVG_LOCKED_LOW
+  No wick on candle_c may go below FVG_LOCKED_LOW. The low IS FVG_LOCKED_LOW.
+
+COMPUTE 2 — BOS target (compute before generating displacement):
   structural_high = candles[swing_high_idx].h
-  bos_close_target = structural_high + pick a value between
-                     (min_break_pips × 0.0001) and (max_break_pips × 0.0001)
+  bos_break = pick a value between min_break_pips and max_break_pips (e.g. 8 pips)
+  bos_close_target = structural_high + (bos_break × 0.0001)
 
-STEP 3 — Plan displacement candle prices with decay:
-  D candle 1 (ob_idx+1): opens above OB_TOP, close = open + large_impulse body
-    This is candle_b of FVG — its prices don't create the gap, but must not fill it.
-    candle_b.l must be >= FVG_BOTTOM (so it doesn't overlap the OB candle range)
-  D candle 2 (ob_idx+2): this is candle_c of FVG.
-    candle_c.l = FVG_TOP (exactly, or up to 5 pips above for a clean gap)
-    candle_c.c = candle_c.l + medium_impulse body
-  D candle 3: continue bullish with medium_impulse
-  D candle 4: small_impulse, close approaches bos_close_target
+COMPUTE 3 — Total displacement range required:
+  displacement_target = max(minimum_displacement_pips, bos_close_target - OB_TOP + 0.0020)
+  This is the minimum pip range Phase D must cover from OB_TOP.
 
-STEP 4 — Apply OHLC normalization to each candle using the formula above.
+NOW GENERATE PHASE D CANDLES using the locked prices:
 
-STEP 5 — VERIFY:
+  candle_b (ob_idx+1 = first Phase D candle):
+    Direction: BULLISH (c > o). This is a hard requirement.
+    open: sweep candle close + 1-3 pips (continues from sweep)
+    close: open + large_impulse body (28-38 pips)
+    l = APPLY NORMALIZATION: l = min(o, c) - small lower wick (2-4 pips)
+    l MUST be >= OB_TOP to preserve the FVG gap. If l < OB_TOP: increase open.
+    h = max(o, c) + small upper wick (2-4 pips)
+
+  candle_c (ob_idx+2 = second Phase D candle):
+    l IS ALREADY SET: candles[ob_idx+2].l = FVG_LOCKED_LOW (from COMPUTE 1 above)
+    open: candle_b.close + 1-3 pips
+    close: open + medium_impulse body (16-26 pips)
+    h = max(o, c) + small upper wick
+    l = FVG_LOCKED_LOW (DO NOT change this — it was set in COMPUTE 1)
+
+  candle D3 (ob_idx+3): bullish, medium_impulse body
+  candle D4 (ob_idx+4): bullish, small_impulse body, close approaches bos_close_target
+
+VERIFY after generating all Phase D candles:
   gap = candles[ob_idx+2].l - candles[ob_idx].h
   REQUIRED: gap >= (minimum_fvg_size_pips × 0.0001)
-  If gap < minimum: increase candles[ob_idx+2].l until gap is satisfied.
+  If gap is negative or below minimum: the locked low was not respected — fix candle_c.l.
   REQUIRED: total displacement (max Phase D high - OB_TOP) >= (minimum_displacement_pips × 0.0001)
 
 ### PHASE E — BOS (1 candle)
