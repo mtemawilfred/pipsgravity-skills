@@ -459,6 +459,38 @@ DIRECTION FIELD RULE — READ CAREFULLY:
   WRONG: bullish setup with direction: "bullish" — that means a bullish OB candle which is INVALID.
   RIGHT: bullish setup with direction: "bearish" — bearish OB candle before bullish impulse.
 
+LAST OPPOSING CANDLE RULE — CRITICAL FOR EDUCATIONAL CLARITY:
+  The OB candle must be the FINAL opposing candle before displacement begins.
+  No opposing candle may appear between the OB and the first displacement candle.
+
+  WRONG:
+    OB candle (bearish)
+    → another bearish candle with large wick     ← creates ambiguity
+    → displacement starts
+
+  RIGHT:
+    OB candle (bearish)
+    → displacement starts immediately
+
+  If any opposing candle appears after ob_index and before Phase D candle 1:
+    FAIL. Move ob_index to the last opposing candle. Regenerate the transition.
+
+  Why this matters: a beginner watching the video must see ONE clear candle and think
+  "that is the order block." If two opposing candles exist before displacement, the
+  lesson fails — the viewer cannot tell which one the label is pointing to.
+
+WICK/BODY CLASSIFICATION RULE:
+  A valid Order Block candle must have total wicks <= body size.
+  total_wick = (h - max(o,c)) + (min(o,c) - l)
+  body = abs(c - o)
+  REQUIRED: total_wick <= body
+
+  If total_wick > body:
+    classification = "rejection_block" not "order_block"
+    Regenerate the OB candle with smaller wicks.
+    A candle dominated by wicks signals indecision, not institutional commitment.
+    Institutional OB candles have momentum — body dominates, wicks are small.
+
 OB zone coordinates:
   price_top    = candles[ob_index].h (full wick)
   price_bottom = candles[ob_index].l (full wick)
@@ -483,11 +515,20 @@ COHERENCE CHECK — before generating Phase D:
   Step 3: Distribute across Phase D candles with decay
   Step 4: Phase E: close = structural_high + 0.0008
 
+OB-TO-DISPLACEMENT TRANSITION — GENERATE IN THIS ORDER:
+  After generating the OB candle:
+  1. Immediately generate the first Phase D (displacement) candle.
+  2. No additional opposing candles between OB and Phase D. Zero.
+  3. If the price level requires a small connecting candle: make it SAME DIRECTION as displacement.
+     A small bullish candle (3-5 pips) between OB and the first large displacement candle is fine.
+     A small bearish candle between them is NOT fine — it creates a second OB candidate.
+
 FVG — USE EARLIEST VALID GAP FROM OB CANDLE:
   X = ob_index, X+1 = first impulse, X+2 = second impulse
-  VERIFY: candles[X+2].l > candles[X].h AND gap >= 0.0010
+  VERIFY: candles[X+2].l > candles[X].h AND gap >= 0.0005 (5-pip minimum)
   FVG: price_bottom = candles[X].h, price_top = candles[X+2].l, candle_start = X+1
-  If gap < 10 pips: try X = ob_index+1 as fallback.
+  If gap < 5 pips: try X = ob_index+1 as fallback (shift OB anchor forward one candle).
+  Target gap: 5-10 pips. Do not force gaps above 15 pips.
 
 ---
 
@@ -887,6 +928,19 @@ OB candle body must be the LARGEST bearish body in candles[ob-4 to ob].
 VERIFY: abs(candles[ob].c - candles[ob].o) > max(abs(candles[i].c - candles[i].o) for i in range(ob-4, ob)) × 1.3
 FAIL: increase OB candle body size, reduce surrounding candle bodies.
 
+### OB LAST CANDLE CHECK
+No opposing candle may exist between ob_index and Phase D candle 1.
+VERIFY: candles[ob_index + 1] is the first Phase D candle (first displacement candle).
+FAIL: if any opposing candle exists between ob_index and Phase D start, move ob_index
+forward to that candle. Regenerate the transition between Phase C and Phase D.
+
+### OB WICK/BODY CHECK
+total_wick = (candles[ob].h - max(candles[ob].o, candles[ob].c)) + (min(candles[ob].o, candles[ob].c) - candles[ob].l)
+body = abs(candles[ob].c - candles[ob].o)
+REQUIRED: total_wick <= body
+FAIL: candle is a rejection_block, not an order_block. Regenerate OB candle with
+tighter wicks. h = o + 0.0002 max, l = c - 0.0002 max for a bearish OB.
+
 ### OB CANDLE DIRECTION CHECK
 Bullish setup: candles[ob_index].c < candles[ob_index].o → direction: "bearish"
 Bearish setup: candles[ob_index].c > candles[ob_index].o → direction: "bullish"
@@ -894,9 +948,25 @@ direction describes the CANDLE COLOUR, not the trade.
 FAIL: regenerate OB candle with correct open/close. A bullish OB candle in a bullish setup is INVALID.
 
 ### FVG CHECK (Pietrus-914 DetectBullishFVG formula)
-Bullish: candles[ob+2].l > candles[ob].h AND (candles[ob+2].l - candles[ob].h) >= 0.0010
-Bearish: candles[ob+2].h < candles[ob].l AND gap >= 0.0010
-FAIL: widen displacement candles.
+Bullish: candles[ob+2].l > candles[ob].h
+Bearish: candles[ob+2].h < candles[ob].l
+
+FVG SIZE TIERS — USE THESE THRESHOLDS:
+  Too small (< 5 pips)  — FAIL: regenerate displacement. Gap is invisible to a beginner.
+  Minimum   (5-7 pips)  — Acceptable. Passes validation.
+  Preferred (5-10 pips) — Good. Natural and educational.
+  Excellent (8-12 pips) — Best. Clearly visible without distorting the chart.
+  Too large (> 15 pips) — WARNING: may look artificial. Reduce if possible.
+
+  minimum_fvg_size = 0.0005 (5 pips)
+  preferred_fvg_size = 0.0005 to 0.0010 (5-10 pips)
+
+  REQUIRED: gap >= 0.0005
+  FAIL if gap < 0.0005: widen Phase D displacement candles and recalculate.
+  Do NOT force gaps > 0.0015 (15 pips) unless the blueprint explicitly requires it.
+  Oversized FVGs distort the chart and make displacement look unrealistic.
+
+  FALLBACK: if gap < 5 pips at ob+2, try ob_index+1 as the new OB anchor (shift one candle forward).
 
 FVG COORDINATE SANITY CHECK:
   Bullish FVG: price_top = candles[ob+2].l, price_bottom = candles[ob].h
@@ -1142,7 +1212,16 @@ Raw JSON starting with {. No explanation. No preamble. No markdown fences.
     "retracement_rendered": <true if Phase F exists and reaches entry zone>,
     "retracement_match": <true if rendered = requested>,
 
-    "overall_compliance": <count of match=true values / total checks × 100 — e.g. 100 means full blueprint match>
+    "overall_compliance": <weighted compliance score calculated as follows:
+      blueprint_match_score    = (count of match=true values / total match checks) × 100  → weight 50%
+      educational_quality_score = based on fvg_size, ob_wick_valid, displacement_multiplier → weight 30%
+        fvg_size >= 5 pips: +10 pts | fvg_size >= 8 pips: +20 pts | fvg_size < 5 pips: 0 pts
+        ob_wick_valid (total_wick <= body): +5 pts
+        displacement_multiplier >= 3.0: +5 pts
+      structure_quality_score  = based on bos_break_pips, ob_body_pips, retrace_avg vs context_avg → weight 20%
+        bos_break_pips >= 10: +10 pts | ob_body_pips >= 15: +5 pts | retrace valid: +5 pts
+      overall_compliance = (blueprint_match_score × 0.50) + (educational_quality_score × 0.30) + (structure_quality_score × 0.20)
+      Output only the final number — e.g. 92>
   },
   "concept_importance": [
     "<primary concept first — e.g. order_block>",
@@ -1312,8 +1391,10 @@ FINAL CHECKLIST — RUN IN ORDER (candles, structures, compliance):
 - [ ] Section 5B structural invariants all true (no inverted coordinates, no wrong directions)
 - [ ] EQL: abs(touch1.l - touch2.l) <= 0.0003
 - [ ] OB geometry: EQL_level - OB_top >= 0.0010
+- [ ] OB last candle: no opposing candle between ob_index and Phase D candle 1
+- [ ] OB wick/body: total_wick <= body (not a rejection block)
 - [ ] OB candle direction matches setup_type (bearish candle for bullish setup)
-- [ ] FVG: candles[c+2].l > candles[c].h AND gap >= 0.0010
+- [ ] FVG: candles[c+2].l > candles[c].h AND gap >= 0.0005 (5-pip minimum)
 - [ ] FVG: price_top > price_bottom (top must be numerically higher)
 - [ ] BOS direction correct for setup_type (above structural_high for bullish)
 - [ ] BOS: candles[bos].c > structural_high + 0.0010 AND <= structural_high + 0.0020
@@ -1343,7 +1424,7 @@ FINAL CHECKLIST — RUN IN ORDER (candles, structures, compliance):
 - [ ] resolved_anchors present with all indices populated
 - [ ] validation block present with all metrics and failure_reasons (if applicable)
 - [ ] educational_audit present with displacement_multiplier and retrace_avg_body_pips
-- [ ] blueprint_validation block present with overall_compliance score
+- [ ] blueprint_validation block present with weighted overall_compliance score (not hardcoded)
 - [ ] concept_importance array present, ordered from most to least important
 - [ ] All validation flags = true (or failures documented with reasons)
 - [ ] NO overlays array in the output
