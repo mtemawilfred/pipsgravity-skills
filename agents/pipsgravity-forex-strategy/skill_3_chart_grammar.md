@@ -574,6 +574,14 @@ GENERATION:
 
 Alternating: drop (8-15) → small_bounce (4-8) → drop (8-15) → small_bounce (4-8)
 
+BODY SIZE RULE — CRITICAL:
+  Retrace candle bodies must be SMALLER than context candles, not just smaller than displacement.
+  Target: retrace_avg_body_pips <= context_avg_body_pips × 0.70
+  Example: context avg = 7 pips → retrace avg must be <= 4-5 pips.
+  If retrace candles are coming out at 8-10 pips: shrink them. Use 3-6 pip bodies.
+  The visual message must be: "this move has no conviction — it is correcting, not impulsing."
+  A retracement that looks as strong as context phases will confuse the viewer.
+
 For entry_liquidity setups (ALL types):
   The retracement has two stages:
 
@@ -599,12 +607,34 @@ Retrace candles must be VISIBLY smaller and more irregular than displacement can
 
 ### TEMPLATE: launch
 
-```
-Candle 1: body 25-35 pips, opens at/inside entry zone
-Candle 2: body 18-25 pips
-Candle 3: body 15-22 pips
-Last candle: closes AT or ABOVE tp_price
-```
+EDUCATIONAL SEQUENCE — REQUIRED:
+  Launch must not happen instantly the moment price enters the zone.
+  A viewer needs to see: price arrived → tested the zone → market responded → expansion began.
+  This makes the OB feel like a real reaction zone, not a coincidence.
+
+  The required sequence is:
+
+  Phase G candle 1 (zone tap):
+    Price enters the entry zone. Low touches or overlaps zone top.
+    Body: 6-10 pips. Small. Indecisive. Price is testing, not launching.
+    This is price_returns candle — price_returns.candle_index = this candle.
+
+  Phase G candle 2 (hesitation):
+    1-2 small mixed candles. Bodies 3-7 pips. Can be bullish or bearish.
+    Price is pausing inside or just above the zone. No conviction yet.
+    This is the "pause" that makes the launch feel earned.
+
+  Phase G candle 3+ (reaction and launch):
+    First launch candle: body 25-35 pips, opens at/inside entry zone. Clearly bullish.
+    This is launch_candle — set launch_candle to this candle index, NOT the zone tap candle.
+    Candle 2 of launch: body 18-25 pips.
+    Candle 3 of launch: body 15-22 pips.
+    Last candle: closes AT or ABOVE tp_price.
+
+VERIFY:
+  price_returns.candle_index != launch_candle
+  launch_candle >= price_returns.candle_index + 2 (minimum 2 candles between touch and launch)
+  At least 1 hesitation candle between zone tap and first launch candle.
 
 tp_price = max(Phase D + E highs) for bullish, min for bearish.
 Add candles until TP reached.
@@ -703,11 +733,24 @@ retrace_low = min(l of all Phase F candles)
 REQUIRED: retrace_low <= entry_zone_top + 0.0005
 FAIL: add more Phase F candles until price physically reaches the entry zone.
 
+### RETRACE BODY SIZE CHECK
+retrace_avg_body_pips = sum(abs(c-o) for Phase F candles) / Phase F candle count
+context_avg_body_pips = sum(abs(c-o) for Phase A+B candles) / Phase A+B candle count
+REQUIRED: retrace_avg_body_pips <= context_avg_body_pips × 0.70
+FAIL: regenerate Phase F candles with smaller bodies (3-6 pip range). The retracement
+must look visibly weaker than the context phases — not just weaker than displacement.
+
 ### RETRACE CHECK (non-entry-liquidity setups)
 last_F_candle.c <= zone_top + 0.0010
 
 ### TP CHECK
 candles[last_G].c >= tp_price
+
+### LAUNCH SEQUENCE CHECK
+price_returns.candle_index != launch_candle (zone tap and launch are never the same candle)
+launch_candle >= price_returns.candle_index + 2 (minimum 2 candles between touch and launch)
+FAIL: insert hesitation candles between price_returns and launch_candle.
+The sequence must be: zone tap → hesitation (1-2 small candles) → launch.
 
 ### ENTRY PRICE CHECK
 entry_price = zone_bottom + ((zone_top - zone_bottom) × 0.5)
@@ -873,7 +916,7 @@ Raw JSON starting with {. No explanation. No preamble. No markdown fences.
     "context_avg_body_pips": <sum of abs(c-o) for all Phase A+B candles / count — calculated from candle data>,
     "displacement_multiplier": <displacement_pips / context_avg_body_pips — must be >= 3.0 — calculated>,
 
-    "retrace_visibly_slower": <true if Phase F avg body < Phase D avg body by at least 50%>,
+    "retrace_visibly_slower": <true if retrace_avg_body_pips <= context_avg_body_pips × 0.70>,
     "retrace_avg_body_pips": <sum of abs(c-o) for all Phase F candles / count — calculated from candle data>,
 
     "entry_liquidity_convincing": <true if representation_quality is high or medium>
@@ -1041,7 +1084,10 @@ FINAL CHECKLIST (candles and structures only — no overlay checks):
 - [ ] entry_liquidity requested_entry_liquidity matches generated_entry_liquidity (or generated = null with reason)
 - [ ] entry_liquidity representation_quality populated (high/medium/poor/failed)
 - [ ] retrace_low <= entry_zone_top + 0.0005 (price physically entered zone)
+- [ ] retrace_avg_body_pips <= context_avg_body_pips × 0.70 (retrace visibly weaker than context)
 - [ ] launch_candle >= sweep_candle (launch never before sweep)
+- [ ] price_returns.candle_index != launch_candle (zone tap and launch are separate candles)
+- [ ] launch_candle >= price_returns.candle_index + 2 (hesitation candles exist between tap and launch)
 - [ ] entry_price = zone midpoint
 - [ ] confirmed_at values set AFTER structure is complete (not before)
 - [ ] resolved_anchors present with all indices populated
