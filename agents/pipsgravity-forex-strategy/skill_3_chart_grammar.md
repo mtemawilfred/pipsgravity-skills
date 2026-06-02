@@ -448,6 +448,8 @@ EDUCATIONAL VISIBILITY — OB CANDLE MUST STAND OUT:
     OB candle body = max(surrounding 4 candle bodies) × 1.5 (at minimum)
     Surrounding 4 candles before OB: bodies 4-8 pips (small context candles)
     OB candle body: 15-22 pips (clearly stands out)
+    OB candle body MAXIMUM: 22 pips. If body > 22 pips, reduce it.
+    An oversized OB body distorts the chart and makes displacement look proportionally weak.
   VERIFY: candles[ob_index] body > max(bodies of candles[ob_index-4 to ob_index-1]) × 1.3
 
 DIRECTION FIELD RULE — READ CAREFULLY:
@@ -635,7 +637,11 @@ READ FROM SKELETON:
 
 POSITIONING:
   IDM_level = entry_zone_top + ((fvg_price_top - entry_zone_top) × 0.30)
-  REQUIRED: IDM_level >= entry_zone_top + 0.0015 (15+ pips above entry zone)
+  REQUIRED: IDM_level >= entry_zone_top + 0.0008 (minimum 8 pips above entry zone)
+  REQUIRED: IDM_level <= entry_zone_top + 0.0015 (maximum 15 pips above entry zone)
+  Target range: 8–15 pips above entry_zone_top.
+  Too close (< 8 pips): sweep will overlap the zone — not a convincing trap.
+  Too far (> 15 pips): sweep must be unrealistically large to reach entry zone.
   IDM does NOT need to be inside the FVG. It must satisfy the proximity rule above.
 
 GENERATION SEQUENCE:
@@ -898,6 +904,14 @@ If attempt > 3 and failures remain:
     Set representation_quality = "poor" or "failed" for affected structures
     Populate failure_reasons with all remaining failures
     Do NOT output silently as if checks passed
+
+OHLC VIOLATIONS ARE NON-NEGOTIABLE:
+    After every generation pass — before checking anything else — verify:
+    h >= max(o, c) AND l <= min(o, c) for EVERY candle.
+    If ANY candle fails this check: regenerate that phase immediately.
+    This check has NO attempt limit. An OHLC violation is a hard block.
+    The output must NEVER contain a candle where h < o or h < c or l > o or l > c.
+    The self-correction loop does not exit until OHLC is clean on all candles.
 ```
 
 This loop is internal. The output always looks the same — a single JSON object.
@@ -956,15 +970,16 @@ FVG SIZE TIERS — USE THESE THRESHOLDS:
   Minimum   (5-7 pips)  — Acceptable. Passes validation.
   Preferred (5-10 pips) — Good. Natural and educational.
   Excellent (8-12 pips) — Best. Clearly visible without distorting the chart.
-  Too large (> 15 pips) — WARNING: may look artificial. Reduce if possible.
+  Too large (> 12 pips) — FAIL: reduce displacement spread.
 
   minimum_fvg_size = 0.0005 (5 pips)
+  maximum_fvg_size = 0.0012 (12 pips)
   preferred_fvg_size = 0.0005 to 0.0010 (5-10 pips)
 
-  REQUIRED: gap >= 0.0005
-  FAIL if gap < 0.0005: widen Phase D displacement candles and recalculate.
-  Do NOT force gaps > 0.0015 (15 pips) unless the blueprint explicitly requires it.
-  Oversized FVGs distort the chart and make displacement look unrealistic.
+  REQUIRED: gap >= 0.0005 AND gap <= 0.0012
+  FAIL if gap < 0.0005: widen Phase D displacement candles.
+  FAIL if gap > 0.0012: tighten displacement candle bodies — reduce the gap.
+  An 18-pip FVG looks engineered. A 5-10 pip FVG looks natural.
 
   FALLBACK: if gap < 5 pips at ob+2, try ob_index+1 as the new OB anchor (shift one candle forward).
 
@@ -983,7 +998,11 @@ structural_high = candles[swing_high_idx].h
 FAIL: adjust bos candle close upward. Fix Phase D first if it never reached structural_high.
 
 ### ENTRY LIQUIDITY POSITION CHECK
-entry_liquidity_price >= entry_zone_top + 0.0015 (15+ pips above entry zone)
+entry_liquidity_price >= entry_zone_top + 0.0008 (minimum 8 pips above entry zone)
+entry_liquidity_price <= entry_zone_top + 0.0015 (maximum 15 pips above entry zone)
+Target range: 8–15 pips above entry_zone_top.
+Too close (< 8 pips): sweep overlaps zone — trap is not convincing.
+Too far (> 15 pips): sweep must be unrealistically large — chart looks engineered.
 proximity_percent >= 60
   proximity_percent = (1 - ((entry_liquidity_price - entry_zone_top) / (displacement_high - entry_zone_top))) × 100
 FAIL: if proximity < 60, extend the retrace before generating entry liquidity.
@@ -1301,7 +1320,7 @@ For fvg_standalone: candle_a/b/c are the three standalone FVG candles.
   "requested_entry_liquidity": "<the type Skill 2 specified in the skeleton>",
   "generated_entry_liquidity": "<the type actually drawn — must match requested unless generation failed>",
   "representation_quality": "<high | medium | poor | failed>",
-  "representation_quality_reason": "<why quality is high/medium/poor/failed — e.g. 'IDM bounce clearly visible, 3 bullish candles, 28-pip rise' or 'IDM low only 8 pips above entry zone, less convincing than ideal'>",
+  "representation_quality_reason": "<calculated description using ACTUAL numbers from candle data — e.g. 'IDM low at 1.0685, entry_zone_top at 1.0672, distance = 13 pips, 3 bullish bounce candles rising 24 pips from IDM low'. NEVER use template text. NEVER estimate. Compute distance_from_zone = round((idm_price - entry_zone_top) / 0.0001) and state the real number.>",
   "price_level": <price of the liquidity level — near entry zone, proximity >= 60%>,
   "sweep_candle": <index of the sweep candle — takes out the liquidity level>,
   "bounce_start_candle": <first candle of the trap pattern — IDM type only>,
@@ -1385,7 +1404,7 @@ FINAL CHECKLIST — RUN IN ORDER (candles, structures, compliance):
 - [ ] phase_d_start and phase_e_end present (if applicable)
 - [ ] video_type present
 - [ ] If scene_goal = concept_demonstration: entry_zone, sl_price, tp_price omitted
-- [ ] Every candle OHLC valid (h >= max(o,c), l <= min(o,c))
+- [ ] Every candle OHLC valid (h >= max(o,c), l <= min(o,c)) — HARD BLOCK. No output until clean.
 
 ### STEP 2 — AUDIT
 - [ ] Section 5B structural invariants all true (no inverted coordinates, no wrong directions)
@@ -1394,7 +1413,7 @@ FINAL CHECKLIST — RUN IN ORDER (candles, structures, compliance):
 - [ ] OB last candle: no opposing candle between ob_index and Phase D candle 1
 - [ ] OB wick/body: total_wick <= body (not a rejection block)
 - [ ] OB candle direction matches setup_type (bearish candle for bullish setup)
-- [ ] FVG: candles[c+2].l > candles[c].h AND gap >= 0.0005 (5-pip minimum)
+- [ ] FVG: gap >= 0.0005 (5-pip minimum) AND gap <= 0.0012 (12-pip maximum)
 - [ ] FVG: price_top > price_bottom (top must be numerically higher)
 - [ ] BOS direction correct for setup_type (above structural_high for bullish)
 - [ ] BOS: candles[bos].c > structural_high + 0.0010 AND <= structural_high + 0.0020
@@ -1402,7 +1421,8 @@ FINAL CHECKLIST — RUN IN ORDER (candles, structures, compliance):
 - [ ] entry_liquidity generated_entry_liquidity = requested_entry_liquidity (or null with reason)
 - [ ] entry_liquidity representation_quality populated (high/medium/poor/failed)
 - [ ] entry_liquidity proximity_percent >= 60
-- [ ] entry_liquidity price_level >= entry_zone_top + 0.0015
+- [ ] entry_liquidity price_level >= entry_zone_top + 0.0008 (minimum 8 pips above zone)
+- [ ] entry_liquidity price_level <= entry_zone_top + 0.0015 (maximum 15 pips above zone)
 - [ ] retrace_low <= entry_zone_top + 0.0005 (price physically entered zone)
 - [ ] retrace_avg_body_pips <= context_avg_body_pips × 0.70
 - [ ] launch_candle >= sweep_candle
