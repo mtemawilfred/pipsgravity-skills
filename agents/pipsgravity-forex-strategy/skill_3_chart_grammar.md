@@ -131,12 +131,35 @@ every structural constraint check — never re-derive from scratch.
 
 Generate each phase in sequence. Track a running candle index starting at 0.
 
-### OHLC VALIDITY — EVERY CANDLE, NO EXCEPTIONS
+### OHLC NORMALIZATION — EVERY CANDLE, AUTOMATIC, NO EXCEPTIONS
+
+After setting o and c for any candle, IMMEDIATELY compute h and l as follows:
+
 ```
-h >= max(o, c)
-l <= min(o, c)
+h = max(intended_h, o, c)
+l = min(intended_l, o, c)
 ```
-Check every candle before moving to the next. Fix violations immediately.
+
+This is not a check. This is how h and l are assigned.
+Never set h and l independently and hope they are correct.
+Always derive them from o and c plus any desired wick extension.
+
+Pattern for every candle:
+  1. Decide o (open price)
+  2. Decide c (close price)
+  3. Decide wick extensions: upper_wick and lower_wick (both >= 0)
+  4. Set h = max(o, c) + upper_wick
+  5. Set l = min(o, c) - lower_wick
+
+Result is always OHLC-valid by construction. No violation possible.
+
+NEVER do this:
+  o=1.0686, h=1.0690, l=1.0656, c=1.0560  ← c below l — impossible
+
+ALWAYS do this:
+  o=1.0686, c=1.0560                        ← decide open and close first
+  h = max(1.0686, 1.0560) + 0.0004 = 1.0690  ← high is above both
+  l = min(1.0686, 1.0560) - 0.0006 = 1.0554  ← low is below both
 
 ### STARTING PRICE
 Use 1.0700 EUR/USD. Adjust candles[0].o to start below the future OB zone for bullish,
@@ -201,16 +224,37 @@ Candle 1 = Sweep (sweep_idx):
 
 This is the LARGEST move on the chart. Every candle bullish for bullish setup.
 
-BEFORE GENERATING: calculate required range.
+STRUCTURE FIRST. Build the required prices before generating any candle.
+
+STEP 1 — Set the FVG gap price:
+  fvg_gap_pips = minimum_fvg_size_pips (read from Skill 2, e.g. 10)
+  FVG_BOTTOM = OB_TOP  (= candles[ob_idx].h)
+  FVG_TOP = FVG_BOTTOM + (fvg_gap_pips × 0.0001)
+  This means: candles[ob_idx+2].l MUST equal FVG_TOP or higher.
+  Set this price now. Do not derive it later.
+
+STEP 2 — Set the BOS target price:
   structural_high = candles[swing_high_idx].h
-  required_range = structural_high - OB_TOP + (BOS_minimum_break_pips × 0.0001) + 0.0010
-  Distribute across 4 candles with decay: large → medium → medium → small
+  bos_close_target = structural_high + pick a value between
+                     (min_break_pips × 0.0001) and (max_break_pips × 0.0001)
 
-FVG — gap between candles[ob_idx].h and candles[ob_idx+2].l:
-  VERIFY: gap >= (minimum_fvg_size_pips × 0.0001)
-  If gap < minimum: increase candle ob_idx+1 body. The gap must be visible.
+STEP 3 — Plan displacement candle prices with decay:
+  D candle 1 (ob_idx+1): opens above OB_TOP, close = open + large_impulse body
+    This is candle_b of FVG — its prices don't create the gap, but must not fill it.
+    candle_b.l must be >= FVG_BOTTOM (so it doesn't overlap the OB candle range)
+  D candle 2 (ob_idx+2): this is candle_c of FVG.
+    candle_c.l = FVG_TOP (exactly, or up to 5 pips above for a clean gap)
+    candle_c.c = candle_c.l + medium_impulse body
+  D candle 3: continue bullish with medium_impulse
+  D candle 4: small_impulse, close approaches bos_close_target
 
-VERIFY total displacement: (max Phase D high - OB_TOP) >= (minimum_displacement_pips × 0.0001)
+STEP 4 — Apply OHLC normalization to each candle using the formula above.
+
+STEP 5 — VERIFY:
+  gap = candles[ob_idx+2].l - candles[ob_idx].h
+  REQUIRED: gap >= (minimum_fvg_size_pips × 0.0001)
+  If gap < minimum: increase candles[ob_idx+2].l until gap is satisfied.
+  REQUIRED: total displacement (max Phase D high - OB_TOP) >= (minimum_displacement_pips × 0.0001)
 
 ### PHASE E — BOS (1 candle)
 
