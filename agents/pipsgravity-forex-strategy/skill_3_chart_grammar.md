@@ -45,6 +45,59 @@ Read. Resolve. Generate. Output.
 
 ---
 
+## GENERATION PHILOSOPHY — THE ONLY RULE THAT MATTERS
+
+Skill 3 is NOT a chart validator.
+Skill 3 does NOT generate charts and then check if they are valid.
+Skill 3 generates charts that are IMPOSSIBLE to be invalid.
+
+The execution model is a dependency chain. Each structure produces locked values.
+The next structure is built using those locked values as hard inputs.
+
+```
+STEP 1: Generate structure N
+STEP 2: Immediately lock all outputs from structure N
+STEP 3: Generate structure N+1 using locked outputs as inputs
+STEP 4: Repeat
+```
+
+LOCKED VALUES TABLE — built up as each phase completes:
+
+| After Phase | Value locked | Used by |
+|---|---|---|
+| C (OB) | OB_TOP, OB_BOTTOM | Phase D (FVG), Phase F (IDM), Phase G (launch) |
+| C (Sweep) | SWEEP_CLOSE | Phase D candle_b open |
+| A (swing high) | STRUCTURAL_HIGH | Phase E (BOS close) |
+| D (FVG) | FVG_LOCKED_LOW | candle_c.l — never changes after set |
+| E (BOS) | TP_PRICE = max Phase D+E high | Phase G last candle must reach this |
+| F (IDM low) | IDM_LEVEL | Phase G sweep candle |
+
+CONSTRAINT ENFORCEMENT RULE:
+When a candle violates a locked value: ADJUST THE CANDLE, not the locked value.
+The locked value is truth. The candle must conform to it.
+
+Wrong:
+  candle_c.l generated as 1.0420
+  FVG_LOCKED_LOW is 1.0526
+  → report error, output invalid chart
+
+Correct:
+  candle_c.l generated as 1.0420
+  FVG_LOCKED_LOW is 1.0526
+  → set candle_c.l = FVG_LOCKED_LOW = 1.0526
+  → recompute h = max(o, c, 1.0526 + wick) to maintain OHLC validity
+  → continue
+
+LAUNCH RULE — TP is not a target, it is a hard exit condition:
+  Wrong:  generate 5 Phase G candles, check if last candle reaches TP
+  Correct: keep generating Phase G candles until last candle.c >= TP_PRICE
+
+Validation at the end is a sanity check only. If the dependency chain was followed,
+validation should never fail. If it does fail, the locked value was not enforced
+during generation — find where and fix it.
+
+---
+
 ## STEP 1 — READ THE BLUEPRINT
 
 Before writing a single candle, extract these values from the Skill 2 skeleton:
@@ -249,50 +302,56 @@ This is the LARGEST move on the chart. Every candle bullish for bullish setup.
 COMPUTE ALL STRUCTURAL PRICES BEFORE WRITING ANY CANDLE.
 These are not targets or guidelines — they are computed values that constrain the candles.
 
-COMPUTE 1 — FVG boundary (do this first, before anything else):
-  OB_TOP = candles[ob_idx].h  (already generated in Phase C)
-  fvg_gap_pips = minimum_fvg_size_pips from Skill 2 (e.g. 10)
-  FVG_LOCKED_LOW = OB_TOP + (fvg_gap_pips × 0.0001)
+BEFORE GENERATING ANY PHASE D CANDLE — LOCK THESE VALUES:
 
-  candles[fvg_candle_c_idx].l IS LOCKED AT FVG_LOCKED_LOW.
-  This is an assignment, not a constraint to check later.
-  candles[ob_idx+2].l = FVG_LOCKED_LOW
-  No wick on candle_c may go below FVG_LOCKED_LOW. The low IS FVG_LOCKED_LOW.
+  OB_TOP           = candles[ob_idx].h          (read from generated Phase C)
+  SWEEP_CLOSE      = candles[sweep_idx].c        (read from generated Phase C)
+  STRUCTURAL_HIGH  = candles[swing_high_idx].h   (read from generated Phase A)
 
-COMPUTE 2 — BOS target (compute before generating displacement):
-  structural_high = candles[swing_high_idx].h
-  bos_break = pick a value between min_break_pips and max_break_pips (e.g. 8 pips)
-  bos_close_target = structural_high + (bos_break × 0.0001)
+  FVG_LOCKED_LOW   = OB_TOP + (minimum_fvg_size_pips × 0.0001)
+                     e.g. OB_TOP=1.0516, min_gap=10 → FVG_LOCKED_LOW = 1.0526
+                     THIS VALUE DOES NOT CHANGE. IT IS SET ONCE AND USED AS-IS.
 
-COMPUTE 3 — Total displacement range required:
-  displacement_target = max(minimum_displacement_pips, bos_close_target - OB_TOP + 0.0020)
-  This is the minimum pip range Phase D must cover from OB_TOP.
+  bos_break_target = pick between min_break_pips and max_break_pips (e.g. 8)
+  BOS_CLOSE_TARGET = STRUCTURAL_HIGH + (bos_break_target × 0.0001)
 
-NOW GENERATE PHASE D CANDLES using the locked prices:
+NOW GENERATE EACH CANDLE USING LOCKED VALUES AS INPUTS:
 
-  candle_b (ob_idx+1 = first Phase D candle):
-    Direction: BULLISH (c > o). This is a hard requirement.
-    open: sweep candle close + 1-3 pips (continues from sweep)
-    close: open + large_impulse body (28-38 pips)
-    l = APPLY NORMALIZATION: l = min(o, c) - small lower wick (2-4 pips)
-    l MUST be >= OB_TOP to preserve the FVG gap. If l < OB_TOP: increase open.
-    h = max(o, c) + small upper wick (2-4 pips)
+  candle_b = candles[ob_idx+1]  (first Phase D candle — candle_b of FVG):
+    o = SWEEP_CLOSE + 0.0002  (opens just above sweep close)
+    c = o + 0.0030            (large bullish body, 28-38 pips)
+    h = max(o, c) + 0.0003    (small upper wick)
+    l = max(o, c) - 0.0002... but ENFORCE: l >= OB_TOP
+        If computed l < OB_TOP → set l = OB_TOP + 0.0001
+        This preserves the gap — candle_b cannot dip into OB range.
 
-  candle_c (ob_idx+2 = second Phase D candle):
-    l IS ALREADY SET: candles[ob_idx+2].l = FVG_LOCKED_LOW (from COMPUTE 1 above)
-    open: candle_b.close + 1-3 pips
-    close: open + medium_impulse body (16-26 pips)
-    h = max(o, c) + small upper wick
-    l = FVG_LOCKED_LOW (DO NOT change this — it was set in COMPUTE 1)
+  candle_c = candles[ob_idx+2]  (second Phase D candle — candle_c of FVG):
+    l = FVG_LOCKED_LOW          ← THIS IS THE ONLY VALID VALUE FOR l
+                                   Assign it directly. Never derive it from o or c.
+    o = candle_b.c + 0.0002     (opens above candle_b close)
+    c = o + 0.0020              (medium bullish body, 16-26 pips)
+    h = max(o, c) + 0.0003      (small upper wick)
+    l = FVG_LOCKED_LOW          ← RESTATE IT. This is the floor. No wick goes below.
 
-  candle D3 (ob_idx+3): bullish, medium_impulse body
-  candle D4 (ob_idx+4): bullish, small_impulse body, close approaches bos_close_target
+  candle D3 = candles[ob_idx+3]:
+    o = candle_c.c + 0.0002
+    c = o + 0.0018              (medium bullish body)
+    h = max(o, c) + 0.0003
+    l = min(o, c) - 0.0002
 
-VERIFY after generating all Phase D candles:
+  candle D4 = candles[ob_idx+4]:
+    o = candle_D3.c + 0.0001
+    c = approaches BOS_CLOSE_TARGET (small bullish body, 10-16 pips)
+    h = max(o, c) + 0.0002
+    l = min(o, c) - 0.0002
+
+  After D4: TP_PRICE = max(h of all Phase D and E candles)
+            Lock TP_PRICE now. Phase G must reach it.
+
+SANITY CHECK (should always pass if above was followed):
   gap = candles[ob_idx+2].l - candles[ob_idx].h
-  REQUIRED: gap >= (minimum_fvg_size_pips × 0.0001)
-  If gap is negative or below minimum: the locked low was not respected — fix candle_c.l.
-  REQUIRED: total displacement (max Phase D high - OB_TOP) >= (minimum_displacement_pips × 0.0001)
+  This MUST equal FVG_LOCKED_LOW - OB_TOP = minimum_fvg_size_pips × 0.0001
+  If gap is negative: candle_c.l was not assigned correctly. Fix it now.
 
 ### PHASE E — BOS (1 candle)
 
@@ -346,10 +405,19 @@ Candle 2 = hesitation:
 
 Candles 3+ = launch:
   launch_candle = phase_starts[G] + 3 (or wherever hesitation ends)
-  Bullish expansion: large → medium → medium → reach_tp
-  First launch candle: 24-32 pip body
-  VERIFY: last Phase G candle close >= tp_price
-  tp_price = max close or high of Phase D + E candles
+  First launch candle: 24-32 pip body bullish
+  Subsequent candles: medium → medium → smaller, each bullish
+
+  TP_PRICE = max high of all Phase D and Phase E candles (locked after Phase E)
+
+  LAUNCH CONTINUES UNTIL TP_PRICE IS REACHED. This is not a target — it is a stop condition.
+  Keep generating bullish Phase G candles until last_candle.c >= TP_PRICE.
+  Do not stop at the phase_structure[G] count if TP has not been reached —
+  add extra candles to Phase G until the condition is satisfied.
+  The final Phase G candle close must be >= TP_PRICE.
+
+  After the last Phase G candle closes at or above TP_PRICE: stop. Output the chart.
+  Update visible_count and duration_ms to reflect the actual candle count.
 
 ---
 
@@ -482,17 +550,18 @@ All reasoning is internal. The output IS the JSON object, nothing else.
 
 ---
 
-## FINAL CHECK — 10 QUESTIONS BEFORE OUTPUTTING
+## FINAL SANITY CHECK
 
-1. Does candles.length equal sum of all phase candle_counts from Skill 2?
-2. Is every candle OHLC valid (h >= max(o,c), l <= min(o,c))?
-3. Is EQL difference within Skill 2's max_difference_pips?
-4. Is sweep depth >= Skill 2's minimum_sweep_depth_pips?
-5. Is displacement >= Skill 2's minimum_displacement_pips?
-6. Is FVG gap >= Skill 2's minimum_fvg_size_pips?
-7. Is BOS break between Skill 2's min and max break pips?
-8. Is IDM bounce >= Skill 2's minimum_idm_bounce_pips with enough bullish candles?
-9. Did price physically enter the OB zone (at least one Phase F/G candle l <= OB_TOP)?
-10. Does the last Phase G candle reach tp_price?
+If the generation philosophy was followed correctly, all of these should already be true.
+If any is false: find where the locked value was not enforced and fix that candle only.
 
-If any answer is NO: fix that specific candle or phase. Do not output until all 10 are YES.
+1. candles[ob_idx+2].l == FVG_LOCKED_LOW (FVG gap is exactly what was set)
+2. candles[bos_idx].c is between structural_high + min_break and + max_break
+3. Every candle: h >= max(o,c) AND l <= min(o,c)
+4. EQL: abs(touch1.l - touch2.l) <= max_difference_pips × 0.0001
+5. Sweep depth: (EQL_LEVEL - sweep_candle.l) >= minimum_sweep_depth_pips × 0.0001
+6. Displacement: (max Phase D high - OB_TOP) >= minimum_displacement_pips × 0.0001
+7. IDM bounce: (candles[idm_peak_idx].c - IDM_LEVEL) >= minimum_idm_bounce_pips × 0.0001
+8. Price entered zone: at least one Phase F/G candle l <= OB_TOP
+9. Last Phase G candle c >= TP_PRICE (if not: add more candles until it does)
+10. candles.length matches visible_count and duration_ms = (candles.length × 500) + 4000
